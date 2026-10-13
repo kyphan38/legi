@@ -947,6 +947,6 @@ Checklist:
 | 2026-10-13 | Bỏ font serif, quote dùng font hệ thống (sans) 16/18/20px | Chủ app thấy serif khó đọc, nhìn như chữ nghiêng |
 | 2026-10-13 | Giảm lặp: header chỉ còn tên sách, tác giả, thanh tiến độ (khi có tổng số trang); `stopped at` và số quote vào form sửa sách; số trang cạnh quote chỉ hiện khi rê chuột; cột mục lục không có số đếm, nút chỉ hiện khi rê chuột | Màn hình sách bị rối: tên chương, số trang, số quote mỗi thứ hiện 3 lần |
 | 2026-10-13 | Bỏ minimap bên phải | Nhìn như rác; `contents` và dòng tên chương khi cuộn là đủ |
-| 2026-10-13 | Kệ sách: bìa quay ra ngoài (ô bìa xám, tên sách nằm ngang) thay cho gáy sách | Chữ dọc 90 độ trên gáy khó đọc |
+| 2026-10-13 | Kệ sách: chồng sách nằm ngang (gáy quay ra, tên đọc ngang; dày = số quote, dài = số trang, hơi lệch cho giống chồng thật) | Chữ dọc 90 độ trên gáy khó đọc; chủ app chọn xếp chồng thay vì bìa quay ra |
 | 2026-10-13 | `Snaps N` chỉ hiện trên kệ sách, không trên trang sách | Header trang sách giữ tối giản |
 | 2026-10-13 | Ô nhập còn 1 hàng điều khiển: chương · loại (bấm để đổi) · + note · p. · save; `B` chỉ hiện khi bôi đen; chưa chọn chương thì mặc định chương cuối của sách | Bớt nút; không còn `no chapter` khi sách đã có chương |

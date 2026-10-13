@@ -11,7 +11,7 @@ import { useSnapCount } from '@/hooks/useSnapCount';
 import { useLibrary } from '@/contexts/LibraryContext';
 import { shelfViewStore } from '@/lib/prefs';
 import { createBook } from '@/lib/repo';
-import { spineShade } from '@/lib/spine';
+import { spineShade, stackSize } from '@/lib/spine';
 import type { BookRow, BookStatus } from '@/types/legi';
 
 const SHELVES: BookStatus[] = ['reading', 'finished', 'later'];
@@ -102,21 +102,21 @@ export default function ShelfView() {
           <section key={status} className="mt-10">
             <h2 className="text-[13px] text-faint">{status}</h2>
             {view === 'shelf' ? (
-              <div className="mt-3 grid grid-cols-3 items-end gap-x-3 gap-y-5 sm:grid-cols-4">
+              <div className="mt-3 flex flex-col gap-[3px] border-b border-line-strong pb-[3px]">
                 {books.map((b) => (
-                  <Cover key={b.id} book={b} count={count(b)} />
+                  <StackBook key={b.id} book={b} count={count(b)} />
                 ))}
                 {status === 'reading' &&
                   (adding ? (
-                    <div className="col-span-2 self-center">{addForm}</div>
+                    <div className="pt-2">{addForm}</div>
                   ) : (
                     <button
                       type="button"
                       onClick={() => setAdding(true)}
                       aria-label="New book"
-                      className="flex aspect-[2/3] w-full items-center justify-center rounded-[3px] border border-dashed border-line-strong text-faint transition-transform duration-150 hover:-translate-y-1 hover:text-ink"
+                      className="flex h-8 w-[72%] items-center rounded-[2px] border border-dashed border-line-strong px-3 text-[13px] text-faint transition-transform duration-150 hover:translate-x-1 hover:text-ink"
                     >
-                      +
+                      + book
                     </button>
                   ))}
               </div>
@@ -159,22 +159,24 @@ export default function ShelfView() {
   );
 }
 
-/** A book facing out: its cover, title written across (a spine's vertical title was hard to read). */
-function Cover({ book, count }: { book: BookRow; count: number }) {
+/**
+ * A book lying in a pile: the spine faces you and reads left to right (an
+ * upright spine's vertical title was hard to read). Thicker = more quotes,
+ * longer = more pages, a small sideways shift so the pile looks stacked.
+ */
+function StackBook({ book, count }: { book: BookRow; count: number }) {
   const shade = spineShade(book.id);
   const dark = shade >= 3;
+  const { height, width, shift } = stackSize(book.id, count, book.totalPages);
   return (
     <Link
       href={`/book/?id=${book.id}`}
       aria-label={`${book.title}, ${count} ${count === 1 ? 'quote' : 'quotes'}`}
-      className="flex aspect-[2/3] w-full flex-col justify-between rounded-[3px] p-2.5 transition-transform duration-150 ease-[var(--ease-soft)] hover:-translate-y-1 focus-visible:-translate-y-1"
-      style={{ background: `var(--spine-${shade})`, color: dark ? 'var(--bg)' : 'var(--ink)' }}
+      className="flex items-center gap-3 rounded-[2px] px-3 transition-transform duration-150 ease-[var(--ease-soft)] hover:translate-x-1 focus-visible:translate-x-1"
+      style={{ height, width: `${width}%`, marginLeft: `${shift}%`, background: `var(--spine-${shade})`, color: dark ? 'var(--bg)' : 'var(--ink)' }}
     >
-      <span className="line-clamp-4 text-[13px] leading-snug font-medium break-words">{book.title}</span>
-      <span className="flex items-baseline justify-between gap-2 text-[11px] opacity-70">
-        <span className="min-w-0 truncate">{book.author}</span>
-        {count > 0 && <span className="shrink-0 tabular-nums">{count}</span>}
-      </span>
+      <span className="min-w-0 flex-1 truncate text-[13px] font-medium">{book.title}</span>
+      {book.author && <span className="hidden max-w-[40%] shrink-0 truncate text-[11px] opacity-70 sm:inline">{book.author}</span>}
     </Link>
   );
 }

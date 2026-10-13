@@ -8,7 +8,7 @@ import { bookToMarkdown, toJson, toMarkdown } from '@/lib/export';
 import { compareQuotes, orderBetween, sortQuotes } from '@/lib/order';
 import { mergeFields, splitText } from '@/lib/quote-ops';
 import { markRanges, searchAll } from '@/lib/search';
-import { spineShade } from '@/lib/spine';
+import { spineShade, stackSize } from '@/lib/spine';
 import { daysLeft, purgeable, TRASH_MS, trashedWith } from '@/lib/trash';
 import { lastUndoStore, pushUndo, resetUndo, undo, undoSize } from '@/lib/undo';
 import type { BookRow, QuoteRow } from '@/types/legi';
@@ -200,4 +200,13 @@ test('export: markdown with sections, notes, thoughts; json skips trash', () => 
 test('cover shade is stable and in range', () => {
   assert.equal(spineShade('b1'), spineShade('b1'));
   for (const id of ['a', 'b', 'c', 'seed-habits']) assert.ok([1, 2, 3, 4].includes(spineShade(id)));
+});
+
+test('pile sizes stay in bounds', () => {
+  for (const [n, p] of [[0, null], [10_000, 5000], [5, 0]] as const) {
+    const s = stackSize('x', n, p);
+    assert.ok(s.height >= 28 && s.height <= 48);
+    assert.ok(s.width >= 68 && s.width <= 92);
+    assert.ok(s.shift >= 0 && s.width + s.shift <= 100);
+  }
 });
