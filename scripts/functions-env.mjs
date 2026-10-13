@@ -36,7 +36,7 @@ if (!email) {
 
 const lines = [`ALLOWED_USER_EMAIL=${email}`];
 // Always written: non-interactive deploy fails on a param with no value, even with a default.
-lines.push(`GEMINI_MODEL=${(env.GEMINI_MODEL ?? '').trim() || 'gemini-3.8-flash'}`);
+lines.push(`GEMINI_MODEL=${(env.GEMINI_MODEL ?? '').trim() || 'gemini-4-argon'}`);
 writeFileSync('functions/.env', lines.join('\n') + '\n');
 console.log('functions/.env written');
 

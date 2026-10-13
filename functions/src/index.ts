@@ -20,7 +20,7 @@ setGlobalOptions({ region: 'asia-southeast1', maxInstances: 2 });
 
 const GEMINI_API_KEY = defineSecret('GEMINI_API_KEY');
 const ALLOWED_USER_EMAIL = defineString('ALLOWED_USER_EMAIL');
-const GEMINI_MODEL = defineString('GEMINI_MODEL', { default: 'gemini-3.8-flash' });
+const GEMINI_MODEL = defineString('GEMINI_MODEL', { default: 'gemini-4-argon' });
 
 let client: GoogleGenAI | null = null;
 let clientKey = '';
