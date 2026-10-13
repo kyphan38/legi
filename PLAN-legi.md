@@ -943,5 +943,6 @@ Checklist:
 | 2026-10-13 | Bỏ minimap bên phải | Nhìn như rác; `contents` và dòng tên chương khi cuộn là đủ |
 | 2026-10-13 | Kệ sách: chồng sách nằm ngang (gáy quay ra, tên đọc ngang; dày = số quote, dài = số trang, hơi lệch cho giống chồng thật) | Chữ dọc 90 độ trên gáy khó đọc; chủ app chọn xếp chồng thay vì bìa quay ra |
 | 2026-10-13 | `Snaps N` chỉ hiện trên kệ sách, không trên trang sách | Header trang sách giữ tối giản |
+| 2026-10-13 | Mục mới mặc định cùng cấp, ngay sau mục đang chọn (`same level · inside … · top level`) | Đọc theo thứ tự: 3.1 → 3.2 → 3.3 không cần bấm gì; trước đây mặc định `top level` làm lệch mục lục |
 | 2026-10-13 | Bỏ nhập từ Google Play Books | Chủ app không cần; PDF thì copy rồi dán |
 | 2026-10-13 | Ô nhập còn 1 hàng điều khiển: chương · loại (bấm để đổi) · + note · p. · save; `B` chỉ hiện khi bôi đen; chưa chọn chương thì mặc định chương cuối của sách | Bớt nút; không còn `no chapter` khi sách đã có chương |

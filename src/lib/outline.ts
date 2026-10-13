@@ -87,6 +87,16 @@ export function addSection(
   return { sections: [...sections, section], id };
 }
 
+/** A new sibling right after `afterId` (the next part of the book), before any later sibling. */
+export function addSectionAfter(sections: Section[], title: string, afterId: string, id: string = newId()): { sections: Section[]; id: string } {
+  const after = sections.find((s) => s.id === afterId);
+  if (!after) return addSection(sections, title, null, id);
+  const siblings = childrenOf(sections, after.parentId);
+  const next = siblings[siblings.findIndex((s) => s.id === afterId) + 1]?.order ?? null;
+  const section: Section = { id, title: title.trim(), parentId: after.parentId, order: orderBetween(after.order, next) };
+  return { sections: [...sections, section], id };
+}
+
 export function renameSection(sections: Section[], id: string, title: string): Section[] {
   return sections.map((s) => (s.id === id ? { ...s, title: title.trim() } : s));
 }

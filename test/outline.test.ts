@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 
-import { addSection, buildTree, flatten, indent, moveDown, moveUp, outdent, parseToc, pathOf, removeSection, subtreeIds } from '@/lib/outline';
+import { addSection, addSectionAfter, buildTree, flatten, indent, moveDown, moveUp, outdent, parseToc, pathOf, removeSection, subtreeIds } from '@/lib/outline';
 import type { Section } from '@/types/legi';
 
 const S = (id: string, parentId: string | null, order: number, title = id): Section => ({ id, title, parentId, order });
@@ -68,4 +68,11 @@ test('parseToc appends after existing sections and clamps jumps', () => {
   const last = flatten(buildTree(out)).at(-1);
   assert.equal(last?.section.title, 'Sâu quá');
   assert.equal(last?.depth, 0);
+});
+
+test('addSectionAfter: same level, right after, before later siblings', () => {
+  assert.deepEqual(titles(addSectionAfter(base, 'x', 'a1', 'x').sections), ['0:a', '1:a1', '1:x', '1:a2', '0:b']);
+  assert.deepEqual(titles(addSectionAfter(base, 'x', 'a2', 'x').sections), ['0:a', '1:a1', '1:a2', '1:x', '0:b']);
+  assert.deepEqual(titles(addSectionAfter(base, 'x', 'a', 'x').sections), ['0:a', '1:a1', '1:a2', '0:x', '0:b']);
+  assert.deepEqual(titles(addSectionAfter(base, 'x', 'missing', 'x').sections), ['0:a', '1:a1', '1:a2', '0:b', '0:x']);
 });

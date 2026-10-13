@@ -3,7 +3,7 @@
 import { useState } from 'react';
 
 import Sheet from '@/components/Sheet';
-import { addSection, buildTree, flatten, pathOf } from '@/lib/outline';
+import { addSection, addSectionAfter, buildTree, flatten } from '@/lib/outline';
 import type { Section } from '@/types/legi';
 
 type Props = {
@@ -17,33 +17,58 @@ type Props = {
   label?: string;
 };
 
-/** Pick where the next quote goes, or add a section right here. */
+type Place = 'same' | 'inside' | 'top';
+
+/**
+ * Pick where the next quote goes, or add a section right here.
+ * A new section defaults to the SAME level, right after the current one:
+ * reading goes 3.1 → 3.2 → 3.3, so that case needs no tap.
+ */
 export default function SectionPicker({ open, onClose, sections, current, onPick, onAdd, label = 'Chapter' }: Props) {
   const [title, setTitle] = useState('');
-  const [inside, setInside] = useState(false);
+  // null = the default for the current section; reset each time the sheet closes.
+  const [chosen, setChosen] = useState<Place | null>(null);
   const nodes = flatten(buildTree(sections));
-  const currentTitle = pathOf(sections, current).at(-1)?.title;
+  const currentSection = sections.find((s) => s.id === current) ?? null;
+  const place: Place = chosen ?? (currentSection ? 'same' : 'top');
+
+  const close = () => {
+    setChosen(null);
+    onClose();
+  };
 
   const add = () => {
     const t = title.trim();
     if (!t || !onAdd) return;
-    const parent = inside && current ? current : null;
-    const res = addSection(sections, t, parent);
+    const res =
+      place === 'same' && currentSection
+        ? addSectionAfter(sections, t, currentSection.id)
+        : place === 'inside' && currentSection
+          ? addSection(sections, t, currentSection.id)
+          : addSection(sections, t, null);
     onAdd(res.sections, res.id);
     setTitle('');
     onPick(res.id);
-    onClose();
+    close();
   };
 
+  const places: { p: Place; label: string }[] = currentSection
+    ? [
+        { p: 'same', label: 'same level' },
+        { p: 'inside', label: `inside ${currentSection.title}` },
+        ...(currentSection.parentId ? [{ p: 'top' as Place, label: 'top level' }] : []),
+      ]
+    : [];
+
   return (
-    <Sheet open={open} onClose={onClose} label={label}>
+    <Sheet open={open} onClose={close} label={label}>
       <ul className="text-[15px]">
         <li>
           <button
             type="button"
             onClick={() => {
               onPick(null);
-              onClose();
+              close();
             }}
             className={`w-full py-2.5 text-left ${current === null ? 'font-medium text-ink' : 'text-muted'}`}
           >
@@ -56,7 +81,7 @@ export default function SectionPicker({ open, onClose, sections, current, onPick
               type="button"
               onClick={() => {
                 onPick(n.section.id);
-                onClose();
+                close();
               }}
               style={{ paddingLeft: n.depth * 16 }}
               className={`w-full py-2.5 text-left ${n.section.id === current ? 'font-medium text-ink' : n.depth === 0 ? 'text-ink' : 'text-muted'}`}
@@ -85,14 +110,13 @@ export default function SectionPicker({ open, onClose, sections, current, onPick
             spellCheck={false}
             className="w-full bg-transparent py-2 text-[16px] outline-none placeholder:text-faint"
           />
-          {current && (
-            <div className="mt-2 flex gap-4 text-[13px]" role="radiogroup" aria-label="Where">
-              <button type="button" role="radio" aria-checked={!inside} onClick={() => setInside(false)} className={inside ? 'text-faint' : 'text-ink'}>
-                top level
-              </button>
-              <button type="button" role="radio" aria-checked={inside} onClick={() => setInside(true)} className={`min-w-0 truncate ${inside ? 'text-ink' : 'text-faint'}`}>
-                inside {currentTitle}
-              </button>
+          {places.length > 0 && (
+            <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-[13px]" role="radiogroup" aria-label="Where">
+              {places.map(({ p, label }) => (
+                <button key={p} type="button" role="radio" aria-checked={place === p} onClick={() => setChosen(p)} className={`min-w-0 truncate ${place === p ? 'text-ink' : 'text-faint hover:text-muted'}`}>
+                  {label}
+                </button>
+              ))}
             </div>
           )}
         </div>
