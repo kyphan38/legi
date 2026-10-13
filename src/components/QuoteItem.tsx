@@ -76,6 +76,19 @@ function QuoteItem({ quote, selected, focused, selecting, footer, onOpen, onMenu
         </div>
         {/* The page is for finding the line again in the paper book: shown on hover, and in the editor. */}
         <div className="flex w-8 shrink-0 flex-col items-end gap-1 pt-[0.5em] text-[12px] text-faint tabular-nums">
+          {/* Mac: a visible way to the menu (right click / long press are hidden). */}
+          <button
+            type="button"
+            aria-label="More"
+            onPointerDown={(e) => e.stopPropagation()}
+            onClick={(e) => {
+              e.stopPropagation();
+              onMenu(quote);
+            }}
+            className="-mt-1 hidden px-1 leading-none opacity-0 transition-opacity group-hover:opacity-100 focus-visible:opacity-100 hover:text-ink md:block"
+          >
+            ···
+          </button>
           {quote.favorite && <StarIcon size={11} filled />}
           {quote.page !== null && <span className="opacity-0 transition-opacity group-hover:opacity-100">{quote.page}</span>}
         </div>

@@ -37,7 +37,7 @@ function OutlineList({ nodes, counts, activeId, onJump, showCounts = true }: Pic
             type="button"
             onClick={() => onJump(n.section.id)}
             style={{ paddingLeft: n.depth * 12 }}
-            className={`flex w-full items-baseline justify-between gap-2 py-1.5 text-left transition-colors ${n.section.id === activeId ? 'text-ink' : 'text-faint hover:text-muted'}`}
+            className={`flex w-full items-baseline justify-between gap-2 py-1.5 text-left transition-colors focus-visible:text-ink focus-visible:outline-none ${n.section.id === activeId ? 'text-ink' : 'text-faint hover:text-muted'}`}
           >
             <span className="min-w-0 truncate">{n.section.title}</span>
             {showCounts && <span className="shrink-0 text-faint tabular-nums">{counts.get(n.section.id) || ''}</span>}

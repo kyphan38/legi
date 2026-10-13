@@ -21,6 +21,7 @@ import { toggleEmph } from '@/lib/emph';
 import { mergeTexts } from '@/lib/merge-text';
 import { splitQuote, trashQuotes, updateQuote } from '@/lib/repo';
 import { tidy } from '@/lib/typo';
+import { graphemes } from '@/lib/vi';
 import type { QuoteKind, QuoteRow } from '@/types/legi';
 
 const SAVE_MS = 1000;
@@ -246,7 +247,8 @@ export default function QuoteEditor({ uid, quote, kinds = ['quote', 'thought', '
         >
           delete
         </button>
-        <button type="button" onClick={done} className="ml-auto text-ink">
+        <span className="ml-auto text-[12px] tabular-nums">{graphemes(text.replace(/\*\*/g, '')).length}</span>
+        <button type="button" onClick={done} className="text-ink">
           done
         </button>
       </div>

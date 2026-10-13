@@ -944,5 +944,10 @@ Checklist:
 | 2026-10-13 | Kệ sách: chồng sách nằm ngang (gáy quay ra, tên đọc ngang; dày = số quote, dài = số trang, hơi lệch cho giống chồng thật) | Chữ dọc 90 độ trên gáy khó đọc; chủ app chọn xếp chồng thay vì bìa quay ra |
 | 2026-10-13 | `Snaps N` chỉ hiện trên kệ sách, không trên trang sách | Header trang sách giữ tối giản |
 | 2026-10-13 | Mục mới mặc định cùng cấp, ngay sau mục đang chọn (`same level · inside … · top level`) | Đọc theo thứ tự: 3.1 → 3.2 → 3.3 không cần bấm gì; trước đây mặc định `top level` làm lệch mục lục |
+| 2026-10-13 | Nói thay vì gõ: nút micro, chạm để bắt đầu / chạm lại để dừng (tối đa 2 phút), ghi âm → function `transcribe` (Gemini) → chữ vào ô nhập; nói "xuống dòng", "đoạn mới" | Giống logi (đã chạy ổn trên iPhone PWA), nhưng không giữ-để-nói vì tay còn cầm sách |
+| 2026-10-13 | Đếm ký tự khi gõ (theo chữ nhìn thấy) | Chủ app muốn biết mình đã gõ bao nhiêu |
+| 2026-10-13 | `->` `<-` `<->` `=>` thành → ← ↔ ⇒ khi lưu và khi hiển thị | Nhìn đẹp hơn; quote cũ cũng hiện mũi tên |
+| 2026-10-13 | quote = mọi thứ từ sách (nguyên văn hoặc tóm ý), thought = ý của mình, question; sao = câu đáng học. Daily lấy cả quote và thought | Không thêm loại mới để khỏi phải nghĩ mỗi lần ghi |
+| 2026-10-13 | Nút `···` khi rê chuột vào quote (Mac); `move` mở thẳng các mục của cuốn đang đọc, `other book` để sang cuốn khác | Chuột phải / chạm giữ khó tìm ra |
 | 2026-10-13 | Bỏ nhập từ Google Play Books | Chủ app không cần; PDF thì copy rồi dán |
 | 2026-10-13 | Ô nhập còn 1 hàng điều khiển: chương · loại (bấm để đổi) · + note · p. · save; `B` chỉ hiện khi bôi đen; chưa chọn chương thì mặc định chương cuối của sách | Bớt nút; không còn `no chapter` khi sách đã có chương |

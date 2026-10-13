@@ -1,5 +1,5 @@
 // ============================================================
-// legi - Cloud Functions (P5: photo OCR only)
+// legi - Cloud Functions: photo OCR and voice to text
 //
 // The site stays a static export. This function exists because the Gemini
 // key must not reach the browser. It checks the same email as
@@ -14,6 +14,7 @@ import { defineSecret, defineString } from 'firebase-functions/params';
 
 import { isAllowed } from './access.ts';
 import { buildExtractPrompt, checkInput, EXTRACT_SCHEMA, parseExtract } from './extract.ts';
+import { checkVoice, parseVoice, VOICE_PROMPT, VOICE_SCHEMA } from './voice.ts';
 
 setGlobalOptions({ region: 'asia-southeast1', maxInstances: 2 });
 
@@ -24,10 +25,46 @@ const GEMINI_MODEL = defineString('GEMINI_MODEL', { default: 'gemini-3.8-flash' 
 let client: GoogleGenAI | null = null;
 let clientKey = '';
 
-export const extractPage = onCall({ secrets: [GEMINI_API_KEY], timeoutSeconds: 120, memory: '512MiB' }, async (req) => {
-  if (!req.auth || !isAllowed(req.auth.token, ALLOWED_USER_EMAIL.value())) {
+function gemini(): GoogleGenAI {
+  const key = GEMINI_API_KEY.value();
+  if (!client || clientKey !== key) {
+    client = new GoogleGenAI({ apiKey: key });
+    clientKey = key;
+  }
+  return client;
+}
+
+function guard(auth: { token: Parameters<typeof isAllowed>[0] } | undefined): void {
+  if (!auth || !isAllowed(auth.token, ALLOWED_USER_EMAIL.value())) {
     throw new HttpsError('permission-denied', 'Not allowed');
   }
+}
+
+/** The quote said aloud → text. The audio is not kept anywhere. */
+export const transcribe = onCall({ secrets: [GEMINI_API_KEY], timeoutSeconds: 120, memory: '512MiB' }, async (req) => {
+  guard(req.auth);
+  let input;
+  try {
+    input = checkVoice(req.data);
+  } catch (err) {
+    throw new HttpsError('invalid-argument', err instanceof Error ? err.message : 'Bad input');
+  }
+  try {
+    const res = await gemini().models.generateContent({
+      model: GEMINI_MODEL.value(),
+      contents: [{ role: 'user', parts: [{ text: VOICE_PROMPT }, { inlineData: { mimeType: input.mimeType, data: input.audio } }] }],
+      config: { temperature: 0, responseMimeType: 'application/json', responseJsonSchema: VOICE_SCHEMA, httpOptions: { timeout: 100_000 } },
+    });
+    return { text: parseVoice(res.text ?? '') };
+  } catch (err) {
+    // The error only: never what was said.
+    logger.error('transcribe failed', err instanceof Error ? err.message : String(err));
+    throw new HttpsError('unavailable', 'Model call failed');
+  }
+});
+
+export const extractPage = onCall({ secrets: [GEMINI_API_KEY], timeoutSeconds: 120, memory: '512MiB' }, async (req) => {
+  guard(req.auth);
   let input;
   try {
     input = checkInput(req.data);
@@ -35,13 +72,8 @@ export const extractPage = onCall({ secrets: [GEMINI_API_KEY], timeoutSeconds: 1
     throw new HttpsError('invalid-argument', err instanceof Error ? err.message : 'Bad input');
   }
 
-  const key = GEMINI_API_KEY.value();
-  if (!client || clientKey !== key) {
-    client = new GoogleGenAI({ apiKey: key });
-    clientKey = key;
-  }
   try {
-    const res = await client.models.generateContent({
+    const res = await gemini().models.generateContent({
       model: GEMINI_MODEL.value(),
       contents: [
         {

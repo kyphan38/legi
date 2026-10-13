@@ -69,3 +69,7 @@ functions/lib
 functions/.env
 functions/.secret.local
 project-setting.json
+
+# local key files
+gemini_api_key.txt
+*api_key*.txt

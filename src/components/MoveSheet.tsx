@@ -22,12 +22,16 @@ export default function MoveSheet({
   onPick: (bookId: string | null, sectionId: string | null) => void;
   startBookId?: string | null;
 }) {
-  const { liveBooks } = useLibrary();
-  const [book, setBook] = useState<BookRow | null>(null);
+  const { liveBooks, books: all } = useLibrary();
+  // Moving inside the book you are reading is the common case: start in its sections.
+  const start = startBookId ? (all.get(startBookId) ?? null) : null;
+  const [picked, setPicked] = useState<BookRow | null | 'list'>(null);
+  const book = picked === 'list' ? null : (picked ?? (start && start.sections.length ? start : null));
+  const setBook = (b: BookRow | null) => setPicked(b ?? 'list');
   const books = [...liveBooks].sort((a, b) => STATUS_RANK[a.status] - STATUS_RANK[b.status] || b.lastOpenedAt - a.lastOpenedAt || viCollator.compare(a.title, b.title));
 
   const close = () => {
-    setBook(null);
+    setPicked(null);
     onClose();
   };
   const pick = (bookId: string | null, sectionId: string | null) => {
@@ -59,9 +63,12 @@ export default function MoveSheet({
         </ul>
       ) : (
         <div>
-          <button type="button" onClick={() => setBook(null)} className="mb-2 text-[13px] text-faint hover:text-ink">
-            ‹ {book.title}
-          </button>
+          <div className="mb-2 flex items-baseline justify-between gap-3 text-[13px]">
+            <span className="min-w-0 truncate text-faint">{book.title}</span>
+            <button type="button" onClick={() => setBook(null)} className="shrink-0 text-faint hover:text-ink">
+              other book
+            </button>
+          </div>
           <ul className="text-[15px]">
             <li>
               <button type="button" onClick={() => pick(book.id, null)} className="w-full py-2.5 text-left text-muted">

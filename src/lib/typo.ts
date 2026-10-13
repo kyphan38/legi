@@ -24,11 +24,17 @@ function curlyDoubles(line: string): string {
   return out;
 }
 
+/** "->" → "→" and friends. Also used at display time, so older quotes show arrows too. */
+export function arrows(s: string): string {
+  return s.replace(/<->/g, '↔').replace(/->/g, '→').replace(/<-/g, '←').replace(/=>/g, '⇒');
+}
+
 export function tidy(s: string): string {
   return nfc(s)
     .replace(/\r\n?/g, '\n')
     .replace(SOFT_HYPHEN, '')
     .replace(/\.\.\./g, '…')
+    .replace(/[^\n]+/g, arrows)
     .split('\n')
     .map((line) =>
       curlyDoubles(line)

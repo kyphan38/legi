@@ -1,11 +1,13 @@
 import { Fragment } from 'react';
 
 import { parseEmph } from '@/lib/emph';
+import { arrows } from '@/lib/typo';
 
 /** Quote text with **emphasis** and a hanging opening quote mark. `marks` = [start, end) grapheme-free char ranges to bold (search). */
 export default function QuoteText({ text, marks }: { text: string; marks?: [number, number][] }) {
   if (marks && marks.length) return <Marked text={text} marks={marks} />;
-  const runs = parseEmph(text);
+  // Arrows at display time too: quotes saved before tidy() learned them.
+  const runs = parseEmph(arrows(text));
   const first = runs[0];
   const hang = first && /^[“"‘]/.test(first.text);
   return (

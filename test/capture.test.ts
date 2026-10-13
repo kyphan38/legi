@@ -59,3 +59,20 @@ test('the prompt asks for exact text and marked parts only', () => {
   assert.match(p, /ONLY the marked parts/);
   assert.match(buildExtractPrompt('all', 2), /whole page/);
 });
+
+import { checkVoice, parseVoice, VOICE_PROMPT } from '../functions/src/voice.ts';
+
+test('checkVoice: audio data, size, type', () => {
+  assert.throws(() => checkVoice({}), /No audio/);
+  assert.throws(() => checkVoice({ audio: 'QQ==', mimeType: 'video/mp4' }), /Unsupported/);
+  assert.throws(() => checkVoice({ audio: 'A'.repeat(8_000_001), mimeType: 'audio/mp4' }), /too long/);
+  assert.throws(() => checkVoice({ audio: 'bad data!', mimeType: 'audio/mp4' }), /Bad audio/);
+  assert.deepEqual(checkVoice({ audio: 'QQ==', mimeType: 'audio/webm;codecs=opus' }), { audio: 'QQ==', mimeType: 'audio/webm' });
+});
+
+test('parseVoice and the prompt', () => {
+  assert.equal(parseVoice('{"text":"  Thói quen là lãi kép. "}'), 'Thói quen là lãi kép.');
+  assert.equal(parseVoice('nope'), '');
+  assert.match(VOICE_PROMPT, /word for word/);
+  assert.match(VOICE_PROMPT, /xuống dòng/);
+});

@@ -11,7 +11,7 @@ Plan, invariants and every decision: [`PLAN-legi.md`](PLAN-legi.md).
 | Live | https://legi.kyphan38.com |
 | Firebase project | `kyphan38-legi-app`, database `(default)`, `asia-southeast1` |
 | Access | one email - checked on the login screen **and inside `firestore.rules`** |
-| Server | none (P5 adds one Cloud Function for photo OCR) |
+| Server | none for data; two Cloud Functions for AI: `extractPage` (photo OCR) and `transcribe` (voice) |
 | Offline | Firestore persistent cache + a localStorage draft on every keystroke |
 | Fonts | system only; quote text uses the system serif |
 
@@ -26,6 +26,9 @@ npm run dev:emu
 # Sample data (uid = localStorage 'legi.uid' after an emulator sign-in):
 npm run seed -- <uid>
 ```
+
+Functions: `npm run fn:env`, then `firebase deploy --only functions`. The key lives in
+Secret Manager (`firebase functions:secrets:set GEMINI_API_KEY`).
 
 Checks: `npm run lint`, `npm run typecheck`, `npm test`, `npm run build`.
 
@@ -61,6 +64,9 @@ Checks: `npm run lint`, `npm run typecheck`, `npm test`, `npm run build`.
   saves anywhere. Pasting text with blank lines asks `Split into N quotes?`.
 - Lines starting with `#`, `##`, `###` in pasted text become sections.
 - `p52` (or `tr.52`) at the end sets the page. The page carries over to the next quote.
+- The mic button records (tap to start, tap to stop, 2 min max) and writes
+  the words into the composer. Say "xuống dòng" / "đoạn mới" for a line / paragraph.
+- `->` becomes →, `=>` becomes ⇒.
 - `⌘B` wraps the selection in `**emphasis**`, shown in a heavier weight.
 - Pasted PDF text is cleaned: hard line breaks joined, `infor-\nmation` fixed,
   page numbers dropped.

@@ -46,7 +46,7 @@ export default function HomeView() {
     return book ? `/book/?id=${book.id}${startNew ? '&new=1' : ''}` : '/shelf/';
   }, [books, liveBooks, startNew]);
 
-  const hasQuotes = liveQuotes.some((q) => q.kind === 'quote');
+  const hasQuotes = liveQuotes.some((q) => q.kind !== 'question');
 
   useEffect(() => {
     if (!loaded) return;

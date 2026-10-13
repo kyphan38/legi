@@ -13,6 +13,10 @@ test('tidy: ellipsis, curly quotes, apostrophes, spaces', () => {
   assert.equal(tidy('\n\nxin chào'), 'xin chào');
 });
 
+test('tidy turns ascii arrows into arrows', () => {
+  assert.equal(tidy('xe hơi -> Detroit, <- quay lại, a <-> b, nếu => thì'), 'xe hơi → Detroit, ← quay lại, a ↔ b, nếu ⇒ thì');
+});
+
 test('tidy never capitalizes and keeps inner line breaks', () => {
   assert.equal(tidy('dòng một\ndòng hai'), 'dòng một\ndòng hai');
 });

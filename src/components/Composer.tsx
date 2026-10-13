@@ -16,6 +16,7 @@ import CameraButton from '@/components/CameraButton';
 import GrowText, { isComposing } from '@/components/GrowText';
 import SectionPicker from '@/components/SectionPicker';
 import StatusDot from '@/components/StatusDot';
+import VoiceButton from '@/components/VoiceButton';
 import { useLibrary } from '@/contexts/LibraryContext';
 import { clearDraft, readDraft, writeDraft } from '@/lib/draft';
 import { findSimilar, MIN_CHARS } from '@/lib/dup';
@@ -26,7 +27,7 @@ import { cleanPaste, countBlocks, splitBlocks, type Block } from '@/lib/paste';
 import { createQuotes, updateBook, type QuoteInput } from '@/lib/repo';
 import { readJson, writeJson } from '@/lib/store';
 import { tidy } from '@/lib/typo';
-import { looksBroken } from '@/lib/vi';
+import { graphemes, looksBroken } from '@/lib/vi';
 import type { BookRow, QuoteKind, Section } from '@/types/legi';
 
 export type ComposerHandle = { focus: () => void };
@@ -226,6 +227,24 @@ const Composer = forwardRef<ComposerHandle, Props>(function Composer({ uid, book
     });
   };
 
+  // Spoken text goes where the caret is (or at the end), with a space before it.
+  const insertSpoken = (spoken: string) => {
+    const el = textRef.current;
+    const value = el?.value ?? text;
+    const at = el && document.activeElement === el ? el.selectionStart : value.length;
+    const before = value.slice(0, at);
+    const gap = before && !/\s$/.test(before) ? ' ' : '';
+    const next = before + gap + spoken + value.slice(at);
+    const caret = (before + gap + spoken).length;
+    setText(next);
+    setSplit(null);
+    saveDraft({ text: next });
+    requestAnimationFrame(() => {
+      el?.focus();
+      el?.setSelectionRange(caret, caret);
+    });
+  };
+
   const onPaste = (e: ClipboardEvent<HTMLTextAreaElement>) => {
     const raw = e.clipboardData.getData('text/plain');
     if (!raw) return;
@@ -245,6 +264,8 @@ const Composer = forwardRef<ComposerHandle, Props>(function Composer({ uid, book
   const similarBook = similarQuote?.bookId ? books.get(similarQuote.bookId) : null;
   const counts = split ? countBlocks(split.blocks) : null;
   const canSave = text.trim().length > 0;
+  // Visible characters ("ệ" = 1), without the ** of emphasis.
+  const chars = graphemes(text.replace(/\*\*/g, '')).length;
 
   return (
     <div className="fixed inset-x-0 bottom-0 z-20 border-t border-line bg-bg/95 backdrop-blur-sm" data-composer>
@@ -360,8 +381,14 @@ const Composer = forwardRef<ComposerHandle, Props>(function Composer({ uid, book
             </button>
           )}
           <CameraButton uid={uid} bookId={book?.id ?? null} sectionId={validCtx} />
+          <VoiceButton onText={insertSpoken} />
           {extra}
           <span className="ml-auto" />
+          {text && (
+            <span className="shrink-0 text-[12px] tabular-nums" aria-label={`${chars} characters`}>
+              {chars}
+            </span>
+          )}
           <label className="flex shrink-0 items-baseline gap-0.5">
             <span>p.</span>
             <input

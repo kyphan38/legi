@@ -1,6 +1,7 @@
 // ============================================================
 // legi - Daily quote (pure)
 //
+// Quotes and thoughts take part (not questions).
 // Same data + same day → same quote on every device (seeded RNG). No repeat
 // until every quote was shown: only the least-shown group is picked from.
 // Favorites weigh x3; favorites of a book finished ~1 week, ~1 month or
@@ -45,7 +46,8 @@ export function revisitBoost(book: BookRow | undefined, quote: QuoteRow, day: st
 
 export function candidates(quotes: QuoteRow[], books: Map<string, BookRow>): QuoteRow[] {
   return quotes.filter((q) => {
-    if (q.kind !== 'quote' || q.deletedAt !== null) return false;
+    // Your own thoughts are worth meeting again too; open questions are not.
+    if (q.kind === 'question' || q.deletedAt !== null) return false;
     if (q.bookId === null) return true;
     const b = books.get(q.bookId);
     return Boolean(b && b.deletedAt === null);

@@ -129,7 +129,8 @@ test('daily: same day same pick, least shown first, favorites weigh more', () =>
   assert.equal(pickDaily(qs, books, day)?.id, pickDaily([...qs].reverse(), books, day)?.id);
   const shown = qs.map((q) => (q.id === 'c' ? q : { ...q, shownCount: 1 }));
   assert.equal(pickDaily(shown, books, day)?.id, 'c');
-  assert.equal(pickDaily([quote('t', { kind: 'thought' })], books, day), null);
+  assert.equal(pickDaily([quote('t', { kind: 'thought' })], books, day)?.id, 't');
+  assert.equal(pickDaily([quote('q', { kind: 'question' })], books, day), null);
   assert.equal(pickDaily([quote('x', { deletedAt: 1 })], books, day), null);
 
   const fav = [quote('f', { favorite: true }), quote('n')];
