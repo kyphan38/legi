@@ -109,7 +109,7 @@ Tất cả nằm dưới `users/{uid}/`. Thời gian là epoch ms (`number`, ki�
 export type BookStatus = 'reading' | 'finished' | 'later';
 export type BookFormat = 'paper' | 'pdf';
 export type QuoteKind = 'quote' | 'thought' | 'question'; // 'question' chỉ có UI từ P5
-export type QuoteSource = 'typed' | 'paste' | 'ocr' | 'playbooks';
+export type QuoteSource = 'typed' | 'paste' | 'ocr';
 
 export type Section = {
   id: string;            // 8 ký tự ngẫu nhiên [a-z0-9]
@@ -203,7 +203,7 @@ function validQuote(d) {
     && d.note is string && d.note.size() <= 5000
     && (d.page == null || (d.page is int && d.page > 0 && d.page <= 20000))
     && d.favorite is bool
-    && d.source in ['typed','paste','ocr','playbooks']
+    && d.source in ['typed','paste','ocr']
     && (d.answeredBy == null || d.answeredBy is string)
     && d.shownCount is int && d.shownCount >= 0
     && (d.lastShownAt == null || d.lastShownAt is int)
@@ -793,12 +793,7 @@ Sau đó `commit()` dùng `splitBlocks` bản đầy đủ: dòng bắt đầu b
 tạo section (cấp theo số `#`, nằm dưới section đang chọn nếu có). Quote sau heading thuộc section đó.
 Hỏi `Split into 6 quotes and 2 sections?` `split · keep as one`.
 
-**2. Nhập từ Google Play Books.** Trước khi code phần này, **hỏi chủ app một file Google Docs mẫu**
-do Play Books xuất ra (copy toàn bộ chữ dán vào `test/fixtures/playbooks-sample.txt`). Viết
-`parsePlayBooks(text)` theo đúng mẫu thật: lấy highlight, note, số trang/vị trí, chương nếu có.
-Giao diện: trong form sửa sách → `import from play books` → textarea dán → xem trước số lượng:
-`32 new, 8 already saved` → `import`. "Already saved" xác định bằng `findSimilar` (mục 3).
-`source = 'playbooks'`. Không gọi Drive API.
+**2. ~~Nhập từ Google Play Books~~** - bỏ (chủ app quyết định ngày 2026-10-13). PDF thì copy rồi dán (smart paste).
 
 **3. Chống trùng (`dup.ts`).**
 - `trigrams(dupKey(s))`, `dice(a, b) = 2|A∩B| / (|A|+|B|)`.
@@ -824,7 +819,7 @@ Chạm vào để sửa.
 - Chỉ kind `quote` và `thought`.
 
 Test: `paste.test.ts` mở rộng (chữ PDF có ngắt dòng giữa câu, ngắt chữ có gạch nối, số trang lẫn,
-heading `#`), `playbooks.test.ts` (theo fixture thật), `dup.test.ts` (giống 85%, khác dấu thì không trùng,
+heading `#`), `dup.test.ts` (giống 85%, khác dấu thì không trùng,
 chứa trọn), `finish.test.ts` nếu có logic thuần.
 
 Checklist:
@@ -924,7 +919,6 @@ Checklist:
 - Kết nối hodi: Daily quote hiện thành câu hỏi mờ trên Today của hodi.
 - Kết nối cogi: `think about this` gửi quote sang cogi.
 - Liên kết quote với nhau (`related`).
-- Nhập Play Books qua Drive API (thay vì dán).
 - Trang `Year` (số sách đọc xong, số quote).
 
 ## 10. Nhật ký quyết định
@@ -949,4 +943,5 @@ Checklist:
 | 2026-10-13 | Bỏ minimap bên phải | Nhìn như rác; `contents` và dòng tên chương khi cuộn là đủ |
 | 2026-10-13 | Kệ sách: chồng sách nằm ngang (gáy quay ra, tên đọc ngang; dày = số quote, dài = số trang, hơi lệch cho giống chồng thật) | Chữ dọc 90 độ trên gáy khó đọc; chủ app chọn xếp chồng thay vì bìa quay ra |
 | 2026-10-13 | `Snaps N` chỉ hiện trên kệ sách, không trên trang sách | Header trang sách giữ tối giản |
+| 2026-10-13 | Bỏ nhập từ Google Play Books | Chủ app không cần; PDF thì copy rồi dán |
 | 2026-10-13 | Ô nhập còn 1 hàng điều khiển: chương · loại (bấm để đổi) · + note · p. · save; `B` chỉ hiện khi bôi đen; chưa chọn chương thì mặc định chương cuối của sách | Bớt nút; không còn `no chapter` khi sách đã có chương |

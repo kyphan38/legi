@@ -4,7 +4,7 @@ export type BookStatus = 'reading' | 'finished' | 'later';
 export type BookFormat = 'paper' | 'pdf';
 /** 'question' only gets UI in P5. */
 export type QuoteKind = 'quote' | 'thought' | 'question';
-export type QuoteSource = 'typed' | 'paste' | 'ocr' | 'playbooks';
+export type QuoteSource = 'typed' | 'paste' | 'ocr';
 
 export type Section = {
   /** 8 random chars [a-z0-9]. */
