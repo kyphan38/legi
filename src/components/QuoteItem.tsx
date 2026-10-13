@@ -2,6 +2,7 @@
 
 import { memo, useRef } from 'react';
 
+import { AnswerLine } from '@/components/AnswerPicker';
 import { StarIcon } from '@/components/Icons';
 import QuoteText from '@/components/QuoteText';
 import type { QuoteRow } from '@/types/legi';
@@ -80,6 +81,7 @@ function QuoteItem({ quote, selected, focused, selecting, footer, onOpen, onMenu
         </div>
       </div>
       {quote.note && <p className="mt-1 mr-11 pl-4 text-[14px] leading-relaxed whitespace-pre-wrap text-muted">{quote.note}</p>}
+      {quote.kind === 'question' && quote.answeredBy && <AnswerLine id={quote.answeredBy} />}
       {footer}
     </article>
   );

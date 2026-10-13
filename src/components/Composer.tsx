@@ -12,6 +12,7 @@
 import Link from 'next/link';
 import { forwardRef, useCallback, useEffect, useImperativeHandle, useMemo, useRef, useState, type ClipboardEvent, type KeyboardEvent } from 'react';
 
+import CameraButton from '@/components/CameraButton';
 import GrowText, { isComposing } from '@/components/GrowText';
 import SectionPicker from '@/components/SectionPicker';
 import StatusDot from '@/components/StatusDot';
@@ -36,9 +37,9 @@ type Props = {
   book: BookRow | null;
   /** Called with the ids of the quotes just saved. */
   onSaved?: (ids: string[]) => void;
-  /** Extra kinds offered (P5 adds 'question'). */
+  /** Kinds offered; tapping the kind cycles through them. */
   kinds?: QuoteKind[];
-  /** Camera button (P5). */
+  /** Extra controls in the row. */
   extra?: React.ReactNode;
 };
 
@@ -48,7 +49,7 @@ function ctxKey(bookId: string) {
   return `legi.ctx.${bookId}`;
 }
 
-const Composer = forwardRef<ComposerHandle, Props>(function Composer({ uid, book, onSaved, kinds = ['quote', 'thought'], extra }, ref) {
+const Composer = forwardRef<ComposerHandle, Props>(function Composer({ uid, book, onSaved, kinds = ['quote', 'thought', 'question'], extra }, ref) {
   const { liveQuotes, books, dupIndex } = useLibrary();
   const draftKey = `${uid}/${book?.id ?? 'inbox'}`;
   const [initial] = useState(() => readDraft(draftKey));
@@ -358,6 +359,7 @@ const Composer = forwardRef<ComposerHandle, Props>(function Composer({ uid, book
               B
             </button>
           )}
+          <CameraButton uid={uid} bookId={book?.id ?? null} sectionId={validCtx} />
           {extra}
           <span className="ml-auto" />
           <label className="flex shrink-0 items-baseline gap-0.5">

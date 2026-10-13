@@ -8,14 +8,16 @@
   "scripts": {
     "dev": "next dev",
     "dev:emu": "NEXT_PUBLIC_USE_EMULATORS=1 next dev",
-    "emu": "npm run rules -- --emu && firebase emulators:start --only auth,firestore --project demo-legi --import=.emulator-data --export-on-exit=.emulator-data",
+    "emu": "npm run rules -- --emu && npm run fn:env && npm --prefix functions run build && firebase emulators:start --only auth,firestore,functions --project demo-legi --import=.emulator-data --export-on-exit=.emulator-data",
     "build": "next build",
     "lint": "eslint",
     "test": "TZ=Asia/Ho_Chi_Minh node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --import ./test/register.mjs --test test/*.test.ts",
     "typecheck": "next typegen && tsc --noEmit",
     "icons": "node scripts/make-icons.mjs",
     "rules": "node scripts/rules.mjs",
-    "seed": "node scripts/seed-emu.mjs"
+    "seed": "node scripts/seed-emu.mjs",
+    "fn:env": "node scripts/functions-env.mjs",
+    "fn:typecheck": "npm --prefix functions run typecheck"
   },
   "dependencies": {
     "firebase": "^12.18.0",

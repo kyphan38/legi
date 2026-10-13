@@ -18,7 +18,7 @@
 // ============================================================
 
 const CACHE_VERSION = 'legi-v1';
-const PAGES = ['/', '/shelf/', '/book/', '/inbox/', '/slow/', '/search/', '/trash/', '/settings/', '/login/'];
+const PAGES = ['/', '/shelf/', '/book/', '/inbox/', '/slow/', '/search/', '/trash/', '/settings/', '/capture/', '/questions/', '/login/'];
 
 self.addEventListener('install', (event) => {
   self.skipWaiting();

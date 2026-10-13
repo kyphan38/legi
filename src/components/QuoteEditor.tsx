@@ -11,6 +11,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent } from 'react';
 import Link from 'next/link';
 
+import AnswerPicker from '@/components/AnswerPicker';
 import GrowText, { isComposing } from '@/components/GrowText';
 import { StarIcon } from '@/components/Icons';
 import { useLibrary } from '@/contexts/LibraryContext';
@@ -33,12 +34,13 @@ type Props = {
   extra?: React.ReactNode;
 };
 
-export default function QuoteEditor({ uid, quote, kinds = ['quote', 'thought'], onDone, extra }: Props) {
+export default function QuoteEditor({ uid, quote, kinds = ['quote', 'thought', 'question'], onDone, extra }: Props) {
   const { dupIndex, liveQuotes, books } = useLibrary();
   const [text, setText] = useState(quote.text);
   const [note, setNote] = useState(quote.note);
   const [page, setPage] = useState(quote.page ? String(quote.page) : '');
   const [kind, setKind] = useState<QuoteKind>(quote.kind);
+  const [answering, setAnswering] = useState(false);
   const base = useRef({ text: quote.text, note: quote.note });
   const latest = useRef({ text, note, page, kind });
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -134,6 +136,7 @@ export default function QuoteEditor({ uid, quote, kinds = ['quote', 'thought'], 
       className="-mx-3 rounded-md bg-surface-2 px-3 py-2"
       onBlur={(e) => {
         // Leaving the whole editor (not moving between its fields) closes it.
+        if (answering) return;
         if (!e.currentTarget.contains(e.relatedTarget as Node | null)) done();
       }}
     >
@@ -225,6 +228,11 @@ export default function QuoteEditor({ uid, quote, kinds = ['quote', 'thought'], 
         <button type="button" onClick={split} className="hover:text-muted">
           split here
         </button>
+        {kind === 'question' && (
+          <button type="button" onClick={() => setAnswering(true)} className="hover:text-muted">
+            {quote.answeredBy ? 'answer' : 'answered by…'}
+          </button>
+        )}
         {extra}
         <button
           type="button"
@@ -242,6 +250,7 @@ export default function QuoteEditor({ uid, quote, kinds = ['quote', 'thought'], 
           done
         </button>
       </div>
+      {answering && <AnswerPicker uid={uid} question={quote} open onClose={() => setAnswering(false)} />}
     </div>
   );
 }

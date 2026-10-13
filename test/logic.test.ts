@@ -8,7 +8,7 @@ import { bookToMarkdown, toJson, toMarkdown } from '@/lib/export';
 import { compareQuotes, orderBetween, sortQuotes } from '@/lib/order';
 import { mergeFields, splitText } from '@/lib/quote-ops';
 import { markRanges, searchAll } from '@/lib/search';
-import { spineHeight, spineWidth } from '@/lib/spine';
+import { spineShade } from '@/lib/spine';
 import { daysLeft, purgeable, TRASH_MS, trashedWith } from '@/lib/trash';
 import { lastUndoStore, pushUndo, resetUndo, undo, undoSize } from '@/lib/undo';
 import type { BookRow, QuoteRow } from '@/types/legi';
@@ -197,10 +197,7 @@ test('export: markdown with sections, notes, thoughts; json skips trash', () => 
   assert.equal(json.quotes.length, 3);
 });
 
-test('spine size stays in bounds', () => {
-  assert.equal(spineWidth(0), 14);
-  assert.equal(spineWidth(10_000), 56);
-  assert.equal(spineHeight(null), 160);
-  assert.equal(spineHeight(0), 140);
-  assert.equal(spineHeight(5000), 200);
+test('cover shade is stable and in range', () => {
+  assert.equal(spineShade('b1'), spineShade('b1'));
+  for (const id of ['a', 'b', 'c', 'seed-habits']) assert.ok([1, 2, 3, 4].includes(spineShade(id)));
 });

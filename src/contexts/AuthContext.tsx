@@ -26,6 +26,7 @@ import { clearIndexedDbPersistence, terminate } from 'firebase/firestore';
 
 import { allowedEmail, isAllowedUser } from '@/lib/auth/allowed-user';
 import { USE_EMULATORS, getAuthClient, getDb, missingConfig } from '@/lib/firebase-client';
+import { clearSnaps } from '@/lib/snaps';
 import { clearLegiStorage, stringStore } from '@/lib/store';
 
 const NOT_AUTHORIZED = 'This account is not allowed here.';
@@ -145,6 +146,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     } finally {
       // Privacy: also clear drafts and the Firestore cache on this device.
       clearLegiStorage();
+      await clearSnaps();
       try {
         const db = getDb();
         await terminate(db);

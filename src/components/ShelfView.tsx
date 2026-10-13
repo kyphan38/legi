@@ -7,10 +7,11 @@ import { useState, useSyncExternalStore } from 'react';
 import { useUid } from '@/components/AuthGate';
 import StatusDot from '@/components/StatusDot';
 import TopBar from '@/components/TopBar';
+import { useSnapCount } from '@/hooks/useSnapCount';
 import { useLibrary } from '@/contexts/LibraryContext';
 import { shelfViewStore } from '@/lib/prefs';
 import { createBook } from '@/lib/repo';
-import { spineHeight, spineShade, spineWidth } from '@/lib/spine';
+import { spineShade } from '@/lib/spine';
 import type { BookRow, BookStatus } from '@/types/legi';
 
 const SHELVES: BookStatus[] = ['reading', 'finished', 'later'];
@@ -25,6 +26,7 @@ export default function ShelfView() {
   const [title, setTitle] = useState('');
 
   const inbox = byBook.get('')?.length ?? 0;
+  const snaps = useSnapCount(uid);
   const questions = liveQuotes.filter((q) => q.kind === 'question' && q.answeredBy === null).length;
   const count = (b: BookRow) => byBook.get(b.id)?.length ?? 0;
 
@@ -75,6 +77,11 @@ export default function ShelfView() {
           ))}
         </div>
         <div className="ml-auto flex gap-4">
+          {snaps > 0 && (
+            <Link href="/capture/?snaps=1" className="hover:text-ink">
+              Snaps {snaps}
+            </Link>
+          )}
           {questions > 0 && (
             <Link href="/questions/" className="hover:text-ink">
               questions {questions}
@@ -95,19 +102,19 @@ export default function ShelfView() {
           <section key={status} className="mt-10">
             <h2 className="text-[13px] text-faint">{status}</h2>
             {view === 'shelf' ? (
-              <div className="mt-3 flex flex-wrap items-end gap-1 border-b border-line-strong">
+              <div className="mt-3 grid grid-cols-3 items-end gap-x-3 gap-y-5 sm:grid-cols-4">
                 {books.map((b) => (
-                  <Spine key={b.id} book={b} count={count(b)} />
+                  <Cover key={b.id} book={b} count={count(b)} />
                 ))}
                 {status === 'reading' &&
                   (adding ? (
-                    <div className="mb-2 ml-2 min-w-40 flex-1">{addForm}</div>
+                    <div className="col-span-2 self-center">{addForm}</div>
                   ) : (
                     <button
                       type="button"
                       onClick={() => setAdding(true)}
                       aria-label="New book"
-                      className="flex h-[160px] w-[22px] items-center justify-center rounded-t-[3px] border border-b-0 border-dashed border-line-strong text-faint transition-transform duration-150 hover:-translate-y-1 hover:text-ink"
+                      className="flex aspect-[2/3] w-full items-center justify-center rounded-[3px] border border-dashed border-line-strong text-faint transition-transform duration-150 hover:-translate-y-1 hover:text-ink"
                     >
                       +
                     </button>
@@ -152,23 +159,22 @@ export default function ShelfView() {
   );
 }
 
-function Spine({ book, count }: { book: BookRow; count: number }) {
+/** A book facing out: its cover, title written across (a spine's vertical title was hard to read). */
+function Cover({ book, count }: { book: BookRow; count: number }) {
   const shade = spineShade(book.id);
   const dark = shade >= 3;
   return (
     <Link
       href={`/book/?id=${book.id}`}
       aria-label={`${book.title}, ${count} ${count === 1 ? 'quote' : 'quotes'}`}
-      title={book.title}
-      className="flex shrink-0 justify-center overflow-hidden rounded-t-[3px] px-1 py-2.5 transition-transform duration-150 ease-[var(--ease-soft)] hover:-translate-y-1 focus-visible:-translate-y-1"
-      style={{
-        width: spineWidth(count),
-        height: spineHeight(book.totalPages),
-        background: `var(--spine-${shade})`,
-        color: dark ? 'var(--bg)' : 'var(--ink)',
-      }}
+      className="flex aspect-[2/3] w-full flex-col justify-between rounded-[3px] p-2.5 transition-transform duration-150 ease-[var(--ease-soft)] hover:-translate-y-1 focus-visible:-translate-y-1"
+      style={{ background: `var(--spine-${shade})`, color: dark ? 'var(--bg)' : 'var(--ink)' }}
     >
-      <span className="truncate text-[12px] leading-none [writing-mode:vertical-rl]">{book.title}</span>
+      <span className="line-clamp-4 text-[13px] leading-snug font-medium break-words">{book.title}</span>
+      <span className="flex items-baseline justify-between gap-2 text-[11px] opacity-70">
+        <span className="min-w-0 truncate">{book.author}</span>
+        {count > 0 && <span className="shrink-0 tabular-nums">{count}</span>}
+      </span>
     </Link>
   );
 }
