@@ -1,0 +1,282 @@
+@import "tailwindcss";
+
+/* ============================================================
+   legi - design tokens (values from ../DESIGN.md, gray only)
+   Paper feel comes from type, not color: a system serif for quote text,
+   wide line height, a narrow column. No web font.
+   ============================================================ */
+
+:root {
+  --bg: #fafafa;
+  --surface: #ffffff;
+  --surface-2: #f4f4f4;
+  --sunk: #ececec;
+  --ink: #171717;
+  --muted: #555555;
+  --faint: #8a8a8a;
+  --line: #e5e5e5;
+  --line-strong: #d4d4d4;
+  --wash: rgb(23 23 23 / 0.06);
+  --select: rgb(23 23 23 / 0.14);
+  /* Spine shades: 1-2 carry ink text, 3-4 carry bg text. */
+  --spine-1: #d4d4d4;
+  --spine-2: #b0b0b0;
+  --spine-3: #636363;
+  --spine-4: #3d3d3d;
+  --quote-size: 19px;
+  color-scheme: light;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #111111;
+    --surface: #1a1a1a;
+    --surface-2: #222222;
+    --sunk: #0a0a0a;
+    --ink: #e8e8e8;
+    --muted: #a3a3a3;
+    --faint: #7a7a7a;
+    --line: #262626;
+    --line-strong: #3a3a3a;
+    --wash: rgb(232 232 232 / 0.06);
+    --select: rgb(232 232 232 / 0.18);
+    --spine-1: #3a3a3a;
+    --spine-2: #525252;
+    --spine-3: #9a9a9a;
+    --spine-4: #c4c4c4;
+    color-scheme: dark;
+  }
+}
+
+:root[data-theme="dark"] {
+  --bg: #111111;
+  --surface: #1a1a1a;
+  --surface-2: #222222;
+  --sunk: #0a0a0a;
+  --ink: #e8e8e8;
+  --muted: #a3a3a3;
+  --faint: #7a7a7a;
+  --line: #262626;
+  --line-strong: #3a3a3a;
+  --wash: rgb(232 232 232 / 0.06);
+  --select: rgb(232 232 232 / 0.18);
+  --spine-1: #3a3a3a;
+  --spine-2: #525252;
+  --spine-3: #9a9a9a;
+  --spine-4: #c4c4c4;
+  color-scheme: dark;
+}
+
+:root[data-size="s"] {
+  --quote-size: 17px;
+}
+:root[data-size="l"] {
+  --quote-size: 21px;
+}
+
+@theme inline {
+  --color-bg: var(--bg);
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-sunk: var(--sunk);
+  --color-ink: var(--ink);
+  --color-muted: var(--muted);
+  --color-faint: var(--faint);
+  --color-line: var(--line);
+  --color-line-strong: var(--line-strong);
+  --color-wash: var(--wash);
+  --font-serif: ui-serif, "New York", "Noto Serif", Georgia, serif;
+  --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, monospace;
+  --ease-soft: cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+html {
+  /* Page never pans sideways (iOS PWA drags left/right when anything is a
+     few px too wide). Inner lists bring their own `overflow-x-auto`. */
+  overflow-x: hidden;
+  overscroll-behavior-x: none;
+  -webkit-text-size-adjust: 100%;
+  background: var(--bg);
+}
+
+body {
+  overflow-x: clip;
+  overscroll-behavior-x: none;
+  min-height: 100dvh;
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  overscroll-behavior-y: none;
+}
+
+::selection {
+  background: var(--select);
+  color: inherit;
+}
+
+button,
+a {
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+}
+
+/* Focus ring only for keyboard use, not for touch. */
+:focus {
+  outline: none;
+}
+:focus-visible {
+  outline: 1.5px solid var(--faint);
+  outline-offset: 3px;
+  border-radius: 2px;
+}
+/* Text fields show the caret; a ring on top is noise. */
+input:focus-visible,
+textarea:focus-visible {
+  outline: none;
+}
+
+/* Text column: narrow and centered on Mac, 20px margins on iPhone. */
+.paper {
+  width: 100%;
+  max-width: 36rem;
+  margin: 0 auto;
+  padding: calc(env(safe-area-inset-top) + 20px) 20px 0;
+}
+
+/* Quote text: the only serif in the app. 1.75 leaves room for stacked
+   Vietnamese marks (ệ, ở, ữ) without touching the line above. */
+.quote-text {
+  font-family: var(--font-serif);
+  font-size: var(--quote-size);
+  line-height: 1.75;
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+}
+.thought-text {
+  /* >= 16px: iOS zooms into smaller inputs. */
+  font-size: max(16px, calc(var(--quote-size) - 2px));
+  line-height: 1.7;
+  color: var(--muted);
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+}
+/* Opening quote mark hangs in the margin, like a printed book. */
+.hang {
+  margin-left: -0.42em;
+}
+
+/* The textarea grows with its content without JS: ::after holds the same
+   content in the same grid cell and pushes the box taller. Measuring in JS
+   (height=auto, then scrollHeight) jumps the page on every key, because the
+   document shrinks for a frame. */
+.grow {
+  display: grid;
+}
+.grow::after {
+  content: attr(data-value) " ";
+  visibility: hidden;
+}
+.grow > textarea,
+.grow::after {
+  grid-area: 1 / 1 / 2 / 2;
+  font: inherit;
+  line-height: inherit;
+  letter-spacing: inherit;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  padding: 0;
+  margin: 0;
+  border: 0;
+}
+.grow > textarea {
+  resize: none;
+  overflow: hidden;
+  background: transparent;
+  color: inherit;
+  caret-color: var(--ink);
+}
+.grow > textarea::placeholder {
+  color: var(--faint);
+  opacity: 1;
+}
+.grow > textarea:focus-visible {
+  outline: none;
+}
+
+/* Status dot: lights up on save, then fades. */
+@keyframes settle {
+  0%,
+  55% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0.35;
+  }
+}
+.settle {
+  animation: settle 2.4s ease forwards;
+}
+
+/* A list item fades in when a book opens (only the first few, see BookView). */
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+}
+.rise {
+  animation: rise 220ms var(--ease-soft) both;
+}
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+}
+.fade-in {
+  animation: fade-in 180ms ease-out both;
+}
+
+@keyframes sheet-up {
+  from {
+    transform: translateY(16px);
+    opacity: 0;
+  }
+}
+.sheet-up {
+  animation: sheet-up 220ms var(--ease-soft) both;
+}
+
+/* One soft outline when a search result or Daily opens a quote. */
+@keyframes flash {
+  0%,
+  40% {
+    box-shadow: 0 0 0 1.5px var(--faint);
+  }
+  100% {
+    box-shadow: 0 0 0 1.5px transparent;
+  }
+}
+.flash {
+  animation: flash 1.6s ease-out;
+  border-radius: 6px;
+}
+
+/* Quote list items: a long press opens our menu, not the iOS text menu. */
+.no-callout {
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

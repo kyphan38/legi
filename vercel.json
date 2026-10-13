@@ -1,0 +1,6 @@
+{
+  "routes": [
+    { "src": "^/__/auth/(.*)$", "dest": "https://kyphan38-legi-app.firebaseapp.com/__/auth/$1" },
+    { "src": "^/((?!__/)(?:[^/]+/)*[^/.]+)$", "status": 308, "headers": { "Location": "/$1/" } }
+  ]
+}
