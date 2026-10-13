@@ -1,0 +1,424 @@
+'use client';
+
+// ============================================================
+// legi - The quote composer, fixed at the bottom
+//
+// Keys (all wait for the IME: Telex/VNI must finish a letter first):
+//   Enter on an empty last line → save · ⌘/Ctrl+Enter → save anywhere
+//   Tab → page field · Esc → leave (the draft stays) · ⌘B → **emphasis**
+// A blank line splits text into several quotes (asked first).
+// ============================================================
+
+import Link from 'next/link';
+import { forwardRef, useCallback, useEffect, useImperativeHandle, useMemo, useRef, useState, type ClipboardEvent, type KeyboardEvent } from 'react';
+
+import GrowText, { isComposing } from '@/components/GrowText';
+import SectionPicker from '@/components/SectionPicker';
+import StatusDot from '@/components/StatusDot';
+import { useLibrary } from '@/contexts/LibraryContext';
+import { clearDraft, readDraft, writeDraft } from '@/lib/draft';
+import { findSimilar, MIN_CHARS } from '@/lib/dup';
+import { toggleEmph } from '@/lib/emph';
+import { addSection, pathOf } from '@/lib/outline';
+import { takePageToken } from '@/lib/page-token';
+import { cleanPaste, countBlocks, splitBlocks, type Block } from '@/lib/paste';
+import { createQuotes, updateBook, type QuoteInput } from '@/lib/repo';
+import { readJson, writeJson } from '@/lib/store';
+import { tidy } from '@/lib/typo';
+import { looksBroken } from '@/lib/vi';
+import type { BookRow, QuoteKind, Section } from '@/types/legi';
+
+export type ComposerHandle = { focus: () => void };
+
+type Props = {
+  uid: string;
+  /** null = Inbox. */
+  book: BookRow | null;
+  /** Called with the ids of the quotes just saved. */
+  onSaved?: (ids: string[]) => void;
+  /** Extra kinds offered (P5 adds 'question'). */
+  kinds?: QuoteKind[];
+  /** Camera button (P5). */
+  extra?: React.ReactNode;
+};
+
+type Split = { blocks: Block[]; text: string };
+
+function ctxKey(bookId: string) {
+  return `legi.ctx.${bookId}`;
+}
+
+const Composer = forwardRef<ComposerHandle, Props>(function Composer({ uid, book, onSaved, kinds = ['quote', 'thought'], extra }, ref) {
+  const { liveQuotes, books, dupIndex } = useLibrary();
+  const draftKey = `${uid}/${book?.id ?? 'inbox'}`;
+  const [initial] = useState(() => readDraft(draftKey));
+  const [text, setText] = useState(initial?.text ?? '');
+  const [note, setNote] = useState(initial?.note ?? '');
+  const [showNote, setShowNote] = useState(Boolean(initial?.note));
+  const [page, setPage] = useState(initial?.page ?? (book?.currentPage ? String(book.currentPage) : ''));
+  const [kind, setKind] = useState<QuoteKind>(initial?.kind ?? 'quote');
+  const [ctx, setCtx] = useState<string | null>(() => (book ? readJson<string>(ctxKey(book.id)) : null));
+  const [picker, setPicker] = useState(false);
+  const [split, setSplit] = useState<Split | null>(null);
+  const [broken, setBroken] = useState(false);
+  const [pasted, setPasted] = useState(false);
+  const [similar, setSimilar] = useState<string | null>(null);
+  const textRef = useRef<HTMLTextAreaElement>(null);
+  const pageRef = useRef<HTMLInputElement>(null);
+  const noteRef = useRef<HTMLTextAreaElement>(null);
+
+  useImperativeHandle(ref, () => ({ focus: () => textRef.current?.focus() }), []);
+
+  const sections = useMemo(() => book?.sections ?? [], [book?.sections]);
+  const validCtx = ctx && sections.some((s) => s.id === ctx) ? ctx : null;
+  const path = pathOf(sections, validCtx);
+
+  const pickCtx = useCallback(
+    (id: string | null) => {
+      setCtx(id);
+      if (book) writeJson(ctxKey(book.id), id);
+    },
+    [book],
+  );
+
+  const saveDraft = useCallback(
+    (next: Partial<{ text: string; note: string; page: string; kind: QuoteKind }>) => {
+      const d = { text, note, page, kind, ...next, at: Date.now() };
+      if (!d.text && !d.note) clearDraft(draftKey);
+      else writeDraft(draftKey, d);
+    },
+    [draftKey, text, note, page, kind],
+  );
+
+  // Duplicate hint, 300ms after typing stops.
+  useEffect(() => {
+    if (Array.from(text).length < MIN_CHARS) {
+      setSimilar(null);
+      return;
+    }
+    const t = setTimeout(() => setSimilar(findSimilar(text, dupIndex)?.id ?? null), 300);
+    return () => clearTimeout(t);
+  }, [text, dupIndex]);
+
+  const reset = (usedPage: number | null) => {
+    setText('');
+    setNote('');
+    setShowNote(false);
+    setSplit(null);
+    setBroken(false);
+    setPasted(false);
+    setSimilar(null);
+    if (usedPage) setPage(String(usedPage));
+    clearDraft(draftKey);
+    requestAnimationFrame(() => textRef.current?.focus());
+  };
+
+  const write = (blocks: Block[], pageNum: number | null, cleanNote: string) => {
+    let secs: Section[] = sections;
+    let sectionId = validCtx;
+    // Pasted headings nest under the chosen section: # = child of it, ## = child of the last #.
+    const stack: (string | null)[] = [validCtx];
+    const inputs: QuoteInput[] = [];
+    for (const b of blocks) {
+      if (b.type === 'heading') {
+        if (!book) continue;
+        const depth = Math.min(b.depth, stack.length);
+        const res = addSection(secs, b.title, stack[depth - 1] ?? null);
+        secs = res.sections;
+        stack.length = depth;
+        stack.push(res.id);
+        sectionId = res.id;
+        continue;
+      }
+      inputs.push({
+        bookId: book?.id ?? null,
+        sectionId: book ? sectionId : null,
+        kind,
+        text: b.text,
+        note: '',
+        page: pageNum,
+        source: pasted ? 'paste' : 'typed',
+      });
+    }
+    if (inputs.length > 0 && cleanNote) inputs[inputs.length - 1].note = cleanNote;
+    if (book) {
+      const patch: Partial<BookRow> = {};
+      if (secs !== sections) patch.sections = secs;
+      if (pageNum && (!book.currentPage || pageNum > book.currentPage)) patch.currentPage = pageNum;
+      if (Object.keys(patch).length) updateBook(uid, book.id, patch);
+      if (sectionId !== validCtx) pickCtx(sectionId);
+    }
+    const ids = createQuotes(uid, inputs);
+    reset(pageNum);
+    onSaved?.(ids);
+  };
+
+  const commit = () => {
+    const token = takePageToken(text.trimEnd());
+    const pageNum = token.page ?? (Number(page) > 0 ? Math.min(20000, Math.floor(Number(page))) : null);
+    const clean = tidy(token.text);
+    const cleanNote = tidy(note);
+    if (!clean) return;
+    const blocks = splitBlocks(clean);
+    const { quotes, headings } = countBlocks(blocks);
+    if (quotes > 1 || headings > 0) {
+      setSplit({ blocks, text: clean });
+      if (token.page) setPage(String(token.page));
+      return;
+    }
+    write([{ type: 'quote', text: clean }], pageNum, cleanNote);
+  };
+
+  const confirmSplit = (asOne: boolean) => {
+    if (!split) return;
+    const pageNum = Number(page) > 0 ? Math.floor(Number(page)) : null;
+    write(asOne ? [{ type: 'quote', text: split.text }] : split.blocks, pageNum, tidy(note));
+  };
+
+  const onKey = (e: KeyboardEvent<HTMLTextAreaElement>) => {
+    if (isComposing(e)) return;
+    const el = e.currentTarget;
+    if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
+      e.preventDefault();
+      commit();
+      return;
+    }
+    if (e.key === 'Enter' && !e.shiftKey && !e.altKey) {
+      const atEnd = el.selectionStart === el.value.length && el.selectionEnd === el.value.length;
+      if (atEnd && el.value.endsWith('\n') && el.value.trim()) {
+        e.preventDefault();
+        commit();
+      }
+      return;
+    }
+    if (e.key === 'Tab' && !e.shiftKey) {
+      e.preventDefault();
+      pageRef.current?.focus();
+      pageRef.current?.select();
+      return;
+    }
+    if (e.key === 'Escape') {
+      e.preventDefault();
+      el.blur();
+      return;
+    }
+    if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'b') {
+      e.preventDefault();
+      emphasize();
+    }
+  };
+
+  const emphasize = () => {
+    const el = textRef.current;
+    if (!el) return;
+    const res = toggleEmph(el.value, el.selectionStart, el.selectionEnd);
+    if (res.text === el.value) return;
+    setText(res.text);
+    saveDraft({ text: res.text });
+    requestAnimationFrame(() => {
+      el.focus();
+      el.setSelectionRange(res.start, res.end);
+    });
+  };
+
+  const onPaste = (e: ClipboardEvent<HTMLTextAreaElement>) => {
+    const raw = e.clipboardData.getData('text/plain');
+    if (!raw) return;
+    e.preventDefault();
+    const clean = cleanPaste(raw);
+    const el = e.currentTarget;
+    const next = el.value.slice(0, el.selectionStart) + clean + el.value.slice(el.selectionEnd);
+    const caret = el.selectionStart + clean.length;
+    setText(next);
+    setPasted(true);
+    setBroken(looksBroken(raw));
+    saveDraft({ text: next });
+    requestAnimationFrame(() => el.setSelectionRange(caret, caret));
+  };
+
+  const similarQuote = similar ? liveQuotes.find((q) => q.id === similar) : null;
+  const similarBook = similarQuote?.bookId ? books.get(similarQuote.bookId) : null;
+  const counts = split ? countBlocks(split.blocks) : null;
+  const canSave = text.trim().length > 0;
+
+  return (
+    <div className="fixed inset-x-0 bottom-0 z-20 border-t border-line bg-bg/95 backdrop-blur-sm" data-composer>
+      <div className="mx-auto w-full max-w-[36rem] px-5 pt-2 pb-[calc(env(safe-area-inset-bottom)+10px)]">
+        {book && (
+          <div className="flex items-center justify-between gap-3 text-[13px] text-faint">
+            <button type="button" onClick={() => setPicker(true)} className="min-w-0 truncate py-1.5 text-left hover:text-ink">
+              {path.length ? path.map((s) => s.title).join(' › ') : 'no chapter'}
+            </button>
+            <label className="flex shrink-0 items-baseline gap-1">
+              <span>p.</span>
+              <input
+                ref={pageRef}
+                value={page}
+                onChange={(e) => {
+                  const v = e.target.value.replace(/\D/g, '').slice(0, 5);
+                  setPage(v);
+                  saveDraft({ page: v });
+                }}
+                onKeyDown={(e) => {
+                  if (e.nativeEvent.isComposing) return;
+                  if (e.key === 'Tab' && e.shiftKey) {
+                    e.preventDefault();
+                    textRef.current?.focus();
+                  } else if (e.key === 'Enter') {
+                    e.preventDefault();
+                    commit();
+                  }
+                }}
+                inputMode="numeric"
+                aria-label="Page"
+                className="w-[4.5ch] bg-transparent py-1 text-[16px] text-ink tabular-nums outline-none"
+              />
+            </label>
+          </div>
+        )}
+
+        <div className="max-h-[40dvh] overflow-y-auto">
+          <GrowText
+            textareaRef={textRef}
+            value={text}
+            onChange={(v) => {
+              setText(v);
+              if (!v) {
+                setPasted(false);
+                setBroken(false);
+              }
+              setSplit(null);
+              saveDraft({ text: v });
+            }}
+            onKeyDown={onKey}
+            onPaste={onPaste}
+            label={kind === 'thought' ? 'Thought' : kind === 'question' ? 'Question' : 'Quote'}
+            placeholder={kind === 'thought' ? 'A thought…' : kind === 'question' ? 'A question…' : 'Type a quote…'}
+            wrapClassName={`py-1.5 ${kind === 'quote' ? 'quote-text' : 'thought-text text-ink'}`}
+          />
+          {showNote && (
+            <GrowText
+              textareaRef={noteRef}
+              value={note}
+              onChange={(v) => {
+                setNote(v);
+                saveDraft({ note: v });
+              }}
+              onKeyDown={(e) => {
+                if (isComposing(e)) return;
+                if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
+                  e.preventDefault();
+                  commit();
+                }
+              }}
+              label="Note"
+              placeholder="Your note…"
+              wrapClassName="pb-1.5 pl-4 text-[16px] leading-relaxed text-muted"
+            />
+          )}
+        </div>
+
+        {split && counts && (
+          <p className="fade-in flex flex-wrap items-baseline gap-x-3 py-1 text-[13px] text-muted">
+            <span>
+              Split into {counts.quotes} {counts.quotes === 1 ? 'quote' : 'quotes'}
+              {counts.headings > 0 && ` and ${counts.headings} ${counts.headings === 1 ? 'section' : 'sections'}`}?
+            </span>
+            <button type="button" onClick={() => confirmSplit(false)} className="text-ink">
+              split
+            </button>
+            <button type="button" onClick={() => confirmSplit(true)} className="text-faint hover:text-ink">
+              keep as one
+            </button>
+          </p>
+        )}
+        {!split && broken && <p className="py-1 text-[13px] text-muted">Text looks broken. Try a photo.</p>}
+        {!split && similarQuote && (
+          <p className="fade-in flex flex-wrap items-baseline gap-x-3 py-1 text-[13px] text-muted">
+            <span className="min-w-0 truncate">
+              Similar in {similarBook?.title ?? 'Inbox'}
+              {similarQuote.page ? `, p. ${similarQuote.page}` : ''}
+            </span>
+            <Link
+              href={similarQuote.bookId ? `/book/?id=${similarQuote.bookId}&q=${similarQuote.id}` : `/inbox/?q=${similarQuote.id}`}
+              className="text-ink"
+            >
+              open
+            </Link>
+            <button type="button" onClick={commit} className="text-faint hover:text-ink">
+              save anyway
+            </button>
+          </p>
+        )}
+
+        <div className="flex items-center gap-4 pt-1 text-[13px] text-faint">
+          <div className="flex gap-2" role="radiogroup" aria-label="Kind">
+            {kinds.map((k, i) => (
+              <span key={k} className="flex gap-2">
+                {i > 0 && <span aria-hidden>|</span>}
+                <button
+                  type="button"
+                  role="radio"
+                  aria-checked={kind === k}
+                  onClick={() => {
+                    setKind(k);
+                    saveDraft({ kind: k });
+                    textRef.current?.focus();
+                  }}
+                  className={kind === k ? 'text-ink' : 'hover:text-muted'}
+                >
+                  {k}
+                </button>
+              </span>
+            ))}
+          </div>
+          <button
+            type="button"
+            onClick={() => {
+              setShowNote((v) => !v);
+              requestAnimationFrame(() => (showNote ? textRef : noteRef).current?.focus());
+            }}
+            className={showNote ? 'text-ink' : 'hover:text-muted'}
+          >
+            + note
+          </button>
+          <button
+            type="button"
+            onPointerDown={(e) => e.preventDefault()}
+            onClick={emphasize}
+            aria-label="Emphasis"
+            className="font-semibold hover:text-muted"
+          >
+            B
+          </button>
+          {extra}
+          <span className="ml-auto">
+            <StatusDot inline />
+          </span>
+          <button
+            type="button"
+            onPointerDown={(e) => e.preventDefault()}
+            onClick={commit}
+            disabled={!canSave}
+            className={`py-1.5 pl-1 ${canSave ? 'text-ink' : 'text-faint'}`}
+          >
+            save
+          </button>
+        </div>
+      </div>
+
+      {book && (
+        <SectionPicker
+          open={picker}
+          onClose={() => setPicker(false)}
+          sections={sections}
+          current={validCtx}
+          onPick={pickCtx}
+          onAdd={(next) => updateBook(uid, book.id, { sections: next })}
+        />
+      )}
+    </div>
+  );
+});
+
+export default Composer;
