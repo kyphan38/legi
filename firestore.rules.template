@@ -1,0 +1,98 @@
+rules_version = '2';
+
+// ============================================================
+// legi - Firestore rules
+//
+// legi is a static site, so these rules are the only guard. Like hodi they
+// check the email too: a stranger signing in with Google on this project
+// cannot read or write anything, even under their own uid.
+//
+// Nothing is hard-deleted except items in Trash for more than 30 days.
+//
+// __ALLOWED_USER_EMAIL__ is replaced by scripts/rules.mjs with the real email,
+// written to firestore.rules (gitignored). Edit this .template, not the output.
+// ============================================================
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function allowed() {
+      return request.auth != null
+        && request.auth.token.email == '__ALLOWED_USER_EMAIL__'
+        && request.auth.token.email_verified == true;
+    }
+
+    function isOwner(uid) {
+      return allowed() && request.auth.uid == uid;
+    }
+
+    function validBook(d) {
+      return d.keys().hasOnly(['title','author','status','format','totalPages','currentPage',
+          'pdfUrl','takeaway','sections','startedAt','finishedAt','lastOpenedAt','deletedAt',
+          'createdAt','updatedAt'])
+        && d.title is string && d.title.size() > 0 && d.title.size() <= 300
+        && d.author is string && d.author.size() <= 200
+        && d.status in ['reading','finished','later']
+        && d.format in ['paper','pdf']
+        && (d.totalPages == null || (d.totalPages is int && d.totalPages > 0 && d.totalPages <= 20000))
+        && (d.currentPage == null || (d.currentPage is int && d.currentPage > 0 && d.currentPage <= 20000))
+        && (d.pdfUrl == null || (d.pdfUrl is string && d.pdfUrl.size() <= 2000))
+        && (d.takeaway == null || (d.takeaway is string && d.takeaway.size() <= 2000))
+        && d.sections is list && d.sections.size() <= 500
+        && d.startedAt is int && d.lastOpenedAt is int
+        && (d.finishedAt == null || d.finishedAt is int)
+        && (d.deletedAt == null || d.deletedAt is int)
+        && d.createdAt is int && d.updatedAt is int;
+    }
+
+    function validQuote(d) {
+      return d.keys().hasOnly(['bookId','sectionId','kind','text','note','page','favorite','source',
+          'answeredBy','shownCount','lastShownAt','trashedWithBook','deletedAt','createdAt','updatedAt'])
+        && (d.bookId == null || d.bookId is string)
+        && (d.sectionId == null || d.sectionId is string)
+        && d.kind in ['quote','thought','question']
+        && d.text is string && d.text.size() > 0 && d.text.size() <= 5000
+        && d.note is string && d.note.size() <= 5000
+        && (d.page == null || (d.page is int && d.page > 0 && d.page <= 20000))
+        && d.favorite is bool
+        && d.source in ['typed','paste','ocr','playbooks']
+        && (d.answeredBy == null || d.answeredBy is string)
+        && d.shownCount is int && d.shownCount >= 0
+        && (d.lastShownAt == null || d.lastShownAt is int)
+        && d.trashedWithBook is bool
+        && (d.deletedAt == null || d.deletedAt is int)
+        && d.createdAt is int && d.updatedAt is int;
+    }
+
+    // Hard delete only for items in Trash for more than 30 days.
+    function purgeable() {
+      return resource.data.deletedAt is int
+        && request.time.toMillis() - resource.data.deletedAt > 2592000000;
+    }
+
+    match /users/{uid}/books/{id} {
+      allow read: if isOwner(uid);
+      allow create, update: if isOwner(uid) && validBook(request.resource.data);
+      allow delete: if isOwner(uid) && purgeable();
+    }
+    match /users/{uid}/quotes/{id} {
+      allow read: if isOwner(uid);
+      allow create, update: if isOwner(uid) && validQuote(request.resource.data);
+      allow delete: if isOwner(uid) && purgeable();
+    }
+    // First device to pick the day's quote wins; never changed after.
+    match /users/{uid}/daily/{day} {
+      allow read: if isOwner(uid);
+      allow create: if isOwner(uid)
+        && day.matches('^[0-9]{4}-[0-9]{2}-[0-9]{2}$')
+        && request.resource.data.keys().hasOnly(['quoteId','createdAt'])
+        && request.resource.data.quoteId is string
+        && request.resource.data.createdAt is int;
+      allow update, delete: if false;
+    }
+
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
