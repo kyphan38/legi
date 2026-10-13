@@ -20,10 +20,9 @@ function toPages(v: string): number | null {
 }
 
 /** Title, author, progress. Tap the title to edit the book (saved on blur, no save button). */
-export default function BookHeader({ uid, book, onDeleted, menu }: { uid: string; book: BookRow; onDeleted: () => void; menu?: ReactNode }) {
+export default function BookHeader({ uid, book, onDeleted }: { uid: string; book: BookRow; onDeleted: () => void }) {
   const { liveQuotes, quotes } = useLibrary();
   const [editing, setEditing] = useState(false);
-  const [stopAt, setStopAt] = useState<string | null>(null);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [copied, setCopied] = useState(false);
   const count = liveQuotes.filter((q) => q.bookId === book.id).length;
@@ -44,58 +43,27 @@ export default function BookHeader({ uid, book, onDeleted, menu }: { uid: string
           {book.author && <p className="mt-1 text-[15px] text-muted">{book.author}</p>}
         </button>
       ) : (
-        <BookForm uid={uid} book={book} onStatus={setStatus} />
+        <BookForm uid={uid} book={book} onStatus={setStatus} count={count} />
       )}
 
-      <div className="mt-3 flex flex-wrap items-baseline gap-x-4 gap-y-1 text-[13px] text-faint">
-        {book.currentPage ? (
-          <span className="tabular-nums">
-            p. {book.currentPage}
-            {book.totalPages ? ` / ${book.totalPages}` : ''}
-          </span>
-        ) : null}
-        {stopAt === null ? (
-          <button type="button" onClick={() => setStopAt(book.currentPage ? String(book.currentPage) : '')} className="hover:text-ink">
-            stopped at
-          </button>
-        ) : (
-          <label className="flex items-baseline gap-1 text-ink">
-            <span className="text-faint">p.</span>
-            <input
-              autoFocus
-              value={stopAt}
-              onChange={(e) => setStopAt(e.target.value.replace(/\D/g, '').slice(0, 5))}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') {
-                  const p = toPages(stopAt);
-                  if (p) updateBook(uid, book.id, { currentPage: p });
-                  setStopAt(null);
-                } else if (e.key === 'Escape') setStopAt(null);
-              }}
-              onBlur={() => {
-                const p = toPages(stopAt);
-                if (p && p !== book.currentPage) updateBook(uid, book.id, { currentPage: p });
-                setStopAt(null);
-              }}
-              inputMode="numeric"
-              aria-label="Stopped at page"
-              className="w-[5ch] bg-transparent text-[16px] tabular-nums outline-none"
-            />
-          </label>
-        )}
-        {book.pdfUrl && (
-          <a href={book.pdfUrl} target="_blank" rel="noreferrer" className="hover:text-ink">
-            open pdf
-          </a>
-        )}
-        <span>
-          {count} {count === 1 ? 'quote' : 'quotes'}
-        </span>
-        {menu}
-      </div>
-      {progress !== null && (
-        <div className="mt-2 h-[2px] w-full bg-sunk" aria-hidden>
-          <div className="h-full bg-ink" style={{ width: `${progress * 100}%` }} />
+      {/* One quiet line: how far, only when the book's page count is known. Tap the title for the rest. */}
+      {(progress !== null || book.pdfUrl) && (
+        <div className="mt-4 flex items-center gap-3 text-[12px] text-faint tabular-nums">
+          {progress !== null && (
+            <>
+              <div className="h-[2px] max-w-40 flex-1 bg-sunk" aria-hidden>
+                <div className="h-full bg-muted" style={{ width: `${(progress ?? 0) * 100}%` }} />
+              </div>
+              <span>
+                {book.currentPage} / {book.totalPages}
+              </span>
+            </>
+          )}
+          {book.pdfUrl && (
+            <a href={book.pdfUrl} target="_blank" rel="noreferrer" className="hover:text-ink">
+              pdf
+            </a>
+          )}
         </div>
       )}
 
@@ -171,11 +139,12 @@ function Choice<T extends string>({ label, value, options, onPick }: { label: st
 
 const inputClass = 'min-w-0 flex-1 bg-transparent text-[16px] text-ink outline-none';
 
-function BookForm({ uid, book, onStatus }: { uid: string; book: BookRow; onStatus: (s: BookStatus) => void }) {
+function BookForm({ uid, book, onStatus, count }: { uid: string; book: BookRow; onStatus: (s: BookStatus) => void; count: number }) {
   const [title, setTitle] = useState(book.title);
   const [author, setAuthor] = useState(book.author);
   const [pages, setPages] = useState(book.totalPages ? String(book.totalPages) : '');
   const [pdf, setPdf] = useState(book.pdfUrl ?? '');
+  const [at, setAt] = useState(book.currentPage ? String(book.currentPage) : '');
 
   return (
     <div className="text-[15px]">
@@ -208,6 +177,18 @@ function BookForm({ uid, book, onStatus }: { uid: string; book: BookRow; onStatu
           onBlur={() => toPages(pages) !== book.totalPages && updateBook(uid, book.id, { totalPages: toPages(pages) })}
           className={`${inputClass} tabular-nums`}
         />
+      </Field>
+      <Field label="at page">
+        <input
+          value={at}
+          inputMode="numeric"
+          onChange={(e) => setAt(e.target.value.replace(/\D/g, '').slice(0, 5))}
+          onBlur={() => toPages(at) !== book.currentPage && updateBook(uid, book.id, { currentPage: toPages(at) })}
+          className={`${inputClass} tabular-nums`}
+        />
+        <span className="shrink-0 text-[13px] text-faint">
+          {count} {count === 1 ? 'quote' : 'quotes'}
+        </span>
       </Field>
       <Choice label="format" value={book.format} options={FORMATS} onPick={(format) => updateBook(uid, book.id, { format })} />
       {book.format === 'pdf' && (

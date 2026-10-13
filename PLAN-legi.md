@@ -937,10 +937,14 @@ Checklist:
 | 2026-10-13 | Quote trước, metadata sau, có "ngữ cảnh dính" | Không bắt đi 3 bước khi đang đọc |
 | 2026-10-13 | `sections` lưu trong doc sách, cây linh hoạt | Đổi cấu trúc là 1 lần ghi; sách có số cấp khác nhau |
 | 2026-10-13 | `quotes` ở cấp trên, đọc hết vào bộ nhớ | Tìm kiếm, chống trùng, Daily chạy offline và đơn giản |
-| 2026-10-13 | Font serif hệ thống cho quote (ngoại lệ DESIGN.md) | Cảm giác trang sách mà không cần màu kem |
+| 2026-10-13 | ~~Font serif hệ thống cho quote~~ (bỏ cùng ngày, xem dưới) | Cảm giác trang sách mà không cần màu kem |
 | 2026-10-13 | Typewriter chỉ cho Daily và Read slowly | Mở sách mà gõ từng chữ thì chậm và phiền |
 | 2026-10-13 | Không dùng roadmap; outline cột trái (desktop), breadcrumb + sheet + minimap (mobile) | Roadmap tốn chỗ, không giúp tìm nhanh |
 | 2026-10-13 | `kind` có từ P1 (quote, thought); question ở P5 cùng trang Open questions | Thêm trường sớm thì rẻ; question chỉ có ích khi có trang riêng |
 | 2026-10-13 | Xoá mềm, Trash 30 ngày, purge từ client theo rules | Không mất dữ liệu vì bấm nhầm |
 | 2026-10-13 | Ảnh snap chỉ lưu trên máy (IndexedDB) | Riêng tư, không cần Storage rules; ảnh bị xoá sau khi xử lý |
 | 2026-10-13 | Không backup Drive | Chủ app không cần; export là đủ |
+| 2026-10-13 | Bỏ font serif, quote dùng font hệ thống (sans) 16/18/20px | Chủ app thấy serif khó đọc, nhìn như chữ nghiêng |
+| 2026-10-13 | Giảm lặp: header chỉ còn tên sách, tác giả, thanh tiến độ (khi có tổng số trang); `stopped at` và số quote vào form sửa sách; số trang cạnh quote chỉ hiện khi rê chuột; cột mục lục không có số đếm, nút chỉ hiện khi rê chuột | Màn hình sách bị rối: tên chương, số trang, số quote mỗi thứ hiện 3 lần |
+| 2026-10-13 | Bỏ minimap bên phải | Nhìn như rác; `contents` và dòng tên chương khi cuộn là đủ |
+| 2026-10-13 | Ô nhập còn 1 hàng điều khiển: chương · loại (bấm để đổi) · + note · p. · save; `B` chỉ hiện khi bôi đen; chưa chọn chương thì mặc định chương cuối của sách | Bớt nút; không còn `no chapter` khi sách đã có chương |

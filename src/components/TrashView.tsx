@@ -51,7 +51,7 @@ export default function TrashView() {
           return (
             <li key={`q-${it.quote.id}`} className="flex items-baseline gap-4">
               <div className="min-w-0 flex-1">
-                <p className={`line-clamp-3 ${it.quote.kind === 'quote' ? 'font-serif' : ''} text-[16px] leading-relaxed text-muted`}>{it.quote.text.replace(/\*\*/g, '')}</p>
+                <p className={`line-clamp-3 text-[16px] leading-relaxed text-muted`}>{it.quote.text.replace(/\*\*/g, '')}</p>
                 <p className="text-[13px] text-faint">
                   {book?.title ?? 'Inbox'} · {left} {left === 1 ? 'day' : 'days'}
                 </p>

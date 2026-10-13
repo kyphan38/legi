@@ -19,7 +19,7 @@ import { useLibrary } from '@/contexts/LibraryContext';
 import { clearDraft, readDraft, writeDraft } from '@/lib/draft';
 import { findSimilar, MIN_CHARS } from '@/lib/dup';
 import { toggleEmph } from '@/lib/emph';
-import { addSection, pathOf } from '@/lib/outline';
+import { addSection, buildTree, flatten, pathOf } from '@/lib/outline';
 import { takePageToken } from '@/lib/page-token';
 import { cleanPaste, countBlocks, splitBlocks, type Block } from '@/lib/paste';
 import { createQuotes, updateBook, type QuoteInput } from '@/lib/repo';
@@ -57,12 +57,14 @@ const Composer = forwardRef<ComposerHandle, Props>(function Composer({ uid, book
   const [showNote, setShowNote] = useState(Boolean(initial?.note));
   const [page, setPage] = useState(initial?.page ?? (book?.currentPage ? String(book.currentPage) : ''));
   const [kind, setKind] = useState<QuoteKind>(initial?.kind ?? 'quote');
+  // undefined in storage = never chosen; '' = "no chapter" on purpose.
   const [ctx, setCtx] = useState<string | null>(() => (book ? readJson<string>(ctxKey(book.id)) : null));
   const [picker, setPicker] = useState(false);
   const [split, setSplit] = useState<Split | null>(null);
   const [broken, setBroken] = useState(false);
   const [pasted, setPasted] = useState(false);
   const [similar, setSimilar] = useState<string | null>(null);
+  const [hasSelection, setHasSelection] = useState(false);
   const textRef = useRef<HTMLTextAreaElement>(null);
   const pageRef = useRef<HTMLInputElement>(null);
   const noteRef = useRef<HTMLTextAreaElement>(null);
@@ -70,13 +72,15 @@ const Composer = forwardRef<ComposerHandle, Props>(function Composer({ uid, book
   useImperativeHandle(ref, () => ({ focus: () => textRef.current?.focus() }), []);
 
   const sections = useMemo(() => book?.sections ?? [], [book?.sections]);
-  const validCtx = ctx && sections.some((s) => s.id === ctx) ? ctx : null;
+  // No choice yet → the last section of the book (where a reader usually is).
+  const fallbackCtx = useMemo(() => flatten(buildTree(sections)).at(-1)?.section.id ?? null, [sections]);
+  const validCtx = ctx === '' ? null : ctx === null ? fallbackCtx : sections.some((s) => s.id === ctx) ? ctx : fallbackCtx;
   const path = pathOf(sections, validCtx);
 
   const pickCtx = useCallback(
     (id: string | null) => {
-      setCtx(id);
-      if (book) writeJson(ctxKey(book.id), id);
+      setCtx(id ?? '');
+      if (book) writeJson(ctxKey(book.id), id ?? '');
     },
     [book],
   );
@@ -243,40 +247,7 @@ const Composer = forwardRef<ComposerHandle, Props>(function Composer({ uid, book
 
   return (
     <div className="fixed inset-x-0 bottom-0 z-20 border-t border-line bg-bg/95 backdrop-blur-sm" data-composer>
-      <div className="mx-auto w-full max-w-[36rem] px-5 pt-2 pb-[calc(env(safe-area-inset-bottom)+10px)]">
-        {book && (
-          <div className="flex items-center justify-between gap-3 text-[13px] text-faint">
-            <button type="button" onClick={() => setPicker(true)} className="min-w-0 truncate py-1.5 text-left hover:text-ink">
-              {path.length ? path.map((s) => s.title).join(' › ') : 'no chapter'}
-            </button>
-            <label className="flex shrink-0 items-baseline gap-1">
-              <span>p.</span>
-              <input
-                ref={pageRef}
-                value={page}
-                onChange={(e) => {
-                  const v = e.target.value.replace(/\D/g, '').slice(0, 5);
-                  setPage(v);
-                  saveDraft({ page: v });
-                }}
-                onKeyDown={(e) => {
-                  if (e.nativeEvent.isComposing) return;
-                  if (e.key === 'Tab' && e.shiftKey) {
-                    e.preventDefault();
-                    textRef.current?.focus();
-                  } else if (e.key === 'Enter') {
-                    e.preventDefault();
-                    commit();
-                  }
-                }}
-                inputMode="numeric"
-                aria-label="Page"
-                className="w-[4.5ch] bg-transparent py-1 text-[16px] text-ink tabular-nums outline-none"
-              />
-            </label>
-          </div>
-        )}
-
+      <div className="mx-auto w-full max-w-[36rem] px-5 pt-1.5 pb-[calc(env(safe-area-inset-bottom)+8px)]">
         <div className="max-h-[40dvh] overflow-y-auto">
           <GrowText
             textareaRef={textRef}
@@ -292,6 +263,7 @@ const Composer = forwardRef<ComposerHandle, Props>(function Composer({ uid, book
             }}
             onKeyDown={onKey}
             onPaste={onPaste}
+            onSelect={(e) => setHasSelection(e.currentTarget.selectionStart !== e.currentTarget.selectionEnd)}
             label={kind === 'thought' ? 'Thought' : kind === 'question' ? 'Question' : 'Quote'}
             placeholder={kind === 'thought' ? 'A thought…' : kind === 'question' ? 'A question…' : 'Type a quote…'}
             wrapClassName={`py-1.5 ${kind === 'quote' ? 'quote-text' : 'thought-text text-ink'}`}
@@ -351,56 +323,75 @@ const Composer = forwardRef<ComposerHandle, Props>(function Composer({ uid, book
           </p>
         )}
 
-        <div className="flex items-center gap-4 pt-1 text-[13px] text-faint">
-          <div className="flex gap-2" role="radiogroup" aria-label="Kind">
-            {kinds.map((k, i) => (
-              <span key={k} className="flex gap-2">
-                {i > 0 && <span aria-hidden>|</span>}
-                <button
-                  type="button"
-                  role="radio"
-                  aria-checked={kind === k}
-                  onClick={() => {
-                    setKind(k);
-                    saveDraft({ kind: k });
-                    textRef.current?.focus();
-                  }}
-                  className={kind === k ? 'text-ink' : 'hover:text-muted'}
-                >
-                  {k}
-                </button>
-              </span>
-            ))}
-          </div>
+        {/* One row of controls: where it goes, what it is, page, save. */}
+        <div className="flex items-center gap-3 pt-1 text-[13px] text-faint">
+          {book && (
+            <button type="button" onPointerDown={(e) => e.preventDefault()} onClick={() => setPicker(true)} className="min-w-0 shrink truncate py-1.5 text-left hover:text-ink">
+              {path.at(-1)?.title ?? 'no chapter'}
+            </button>
+          )}
+          <button
+            type="button"
+            onPointerDown={(e) => e.preventDefault()}
+            onClick={() => {
+              const next = kinds[(kinds.indexOf(kind) + 1) % kinds.length];
+              setKind(next);
+              saveDraft({ kind: next });
+            }}
+            aria-label={`Kind: ${kind}. Tap to change.`}
+            className="shrink-0 text-muted hover:text-ink"
+          >
+            {kind}
+          </button>
           <button
             type="button"
             onClick={() => {
               setShowNote((v) => !v);
               requestAnimationFrame(() => (showNote ? textRef : noteRef).current?.focus());
             }}
-            className={showNote ? 'text-ink' : 'hover:text-muted'}
+            className={`shrink-0 ${showNote ? 'text-ink' : 'hover:text-muted'}`}
           >
             + note
           </button>
-          <button
-            type="button"
-            onPointerDown={(e) => e.preventDefault()}
-            onClick={emphasize}
-            aria-label="Emphasis"
-            className="font-semibold hover:text-muted"
-          >
-            B
-          </button>
+          {hasSelection && (
+            <button type="button" onPointerDown={(e) => e.preventDefault()} onClick={emphasize} aria-label="Emphasis" className="fade-in font-semibold hover:text-muted">
+              B
+            </button>
+          )}
           {extra}
-          <span className="ml-auto">
-            <StatusDot inline />
-          </span>
+          <span className="ml-auto" />
+          <label className="flex shrink-0 items-baseline gap-0.5">
+            <span>p.</span>
+            <input
+              ref={pageRef}
+              value={page}
+              onChange={(e) => {
+                const v = e.target.value.replace(/\D/g, '').slice(0, 5);
+                setPage(v);
+                saveDraft({ page: v });
+              }}
+              onKeyDown={(e) => {
+                if (e.nativeEvent.isComposing) return;
+                if (e.key === 'Tab' && e.shiftKey) {
+                  e.preventDefault();
+                  textRef.current?.focus();
+                } else if (e.key === 'Enter') {
+                  e.preventDefault();
+                  commit();
+                }
+              }}
+              inputMode="numeric"
+              aria-label="Page"
+              className="w-[4.5ch] bg-transparent py-1 text-[16px] text-faint tabular-nums outline-none focus:text-ink md:text-[13px]"
+            />
+          </label>
+          <StatusDot inline />
           <button
             type="button"
             onPointerDown={(e) => e.preventDefault()}
             onClick={commit}
             disabled={!canSave}
-            className={`py-1.5 pl-1 ${canSave ? 'text-ink' : 'text-faint'}`}
+            className={`shrink-0 py-1.5 ${canSave ? 'text-ink' : 'text-faint'}`}
           >
             save
           </button>

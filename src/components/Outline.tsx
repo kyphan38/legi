@@ -3,14 +3,14 @@
 // ============================================================
 // legi - Where am I in this book
 //
-// Desktop (>= 1280px): a fixed rail on the left. Phone/tablet: a thin line
-// under the top bar with the current path; tap → the same outline in a sheet.
-// Plus a minimap on the right edge (phone/tablet, >= 3 sections).
+// Desktop (>= 1280px): a fixed rail on the left. Phone/tablet: "contents" in
+// the top bar and a thin line with the current path; tap → the outline in a sheet.
+// (A right-edge minimap was tried and dropped: it looked like noise.)
 // "edit" turns the outline into a list of inputs: Tab / Shift+Tab indent,
 // ⌥↑ / ⌥↓ move, long press for the same on phones, paste a table of contents.
 // ============================================================
 
-import { useEffect, useRef, useState } from 'react';
+import { useRef, useState } from 'react';
 
 import Sheet from '@/components/Sheet';
 import { indent, moveDown, moveUp, outdent, parseToc, removeSection, renameSection, type TreeNode } from '@/lib/outline';
@@ -28,7 +28,7 @@ type Props = {
   onFoldAll: (fold: boolean) => void;
 };
 
-function OutlineList({ nodes, counts, activeId, onJump }: Pick<Props, 'nodes' | 'counts' | 'activeId' | 'onJump'>) {
+function OutlineList({ nodes, counts, activeId, onJump, showCounts = true }: Pick<Props, 'nodes' | 'counts' | 'activeId' | 'onJump'> & { showCounts?: boolean }) {
   return (
     <ul className="text-[13px]">
       {nodes.map((n) => (
@@ -37,10 +37,10 @@ function OutlineList({ nodes, counts, activeId, onJump }: Pick<Props, 'nodes' | 
             type="button"
             onClick={() => onJump(n.section.id)}
             style={{ paddingLeft: n.depth * 12 }}
-            className={`flex w-full items-baseline justify-between gap-2 py-1.5 text-left transition-colors ${n.section.id === activeId ? 'font-medium text-ink' : n.depth === 0 ? 'text-muted hover:text-ink' : 'text-faint hover:text-ink'}`}
+            className={`flex w-full items-baseline justify-between gap-2 py-1.5 text-left transition-colors ${n.section.id === activeId ? 'text-ink' : 'text-faint hover:text-muted'}`}
           >
             <span className="min-w-0 truncate">{n.section.title}</span>
-            <span className="shrink-0 text-faint tabular-nums">{counts.get(n.section.id) || ''}</span>
+            {showCounts && <span className="shrink-0 text-faint tabular-nums">{counts.get(n.section.id) || ''}</span>}
           </button>
         </li>
       ))}
@@ -195,13 +195,14 @@ export function OutlineRail(props: Props) {
   const [edit, setEdit] = useState(false);
   if (props.nodes.length === 0) return null;
   return (
-    <aside className="fixed top-[calc(env(safe-area-inset-top)+64px)] bottom-28 left-[max(24px,calc(50vw-18rem-16rem))] hidden w-56 overflow-y-auto pr-2 xl:block">
+    <aside className="group fixed top-[calc(env(safe-area-inset-top)+64px)] bottom-28 left-[max(24px,calc(50vw-18rem-16rem))] hidden w-56 overflow-y-auto pr-2 xl:block">
       {edit ? (
         <EditOutline {...props} onClose={() => setEdit(false)} />
       ) : (
         <>
-          <OutlineList {...props} />
-          <div className="mt-3 flex gap-3 text-[12px] text-faint">
+          <OutlineList {...props} showCounts={false} />
+          {/* Controls only while the pointer is on the rail. */}
+          <div className="mt-3 flex gap-3 text-[12px] text-faint opacity-0 transition-opacity group-focus-within:opacity-100 group-hover:opacity-100">
             <button type="button" onClick={() => props.onFoldAll(true)} className="hover:text-ink">
               fold all
             </button>
@@ -268,62 +269,5 @@ export function OutlineBar(props: Props & { path: string; open: boolean; onOpenC
         )}
       </Sheet>
     </>
-  );
-}
-
-/** Right-edge minimap: one tick per top-level section, a darker band for the visible part. */
-export function Minimap({ topIds, onJump }: { topIds: string[]; onJump: (id: string) => void }) {
-  const [ticks, setTicks] = useState<{ id: string; at: number }[]>([]);
-  const [view, setView] = useState({ top: 0, size: 1 });
-
-  useEffect(() => {
-    if (topIds.length < 3) return;
-    let raf = 0;
-    const measure = () => {
-      cancelAnimationFrame(raf);
-      raf = requestAnimationFrame(() => {
-        const h = document.documentElement.scrollHeight || 1;
-        setTicks(
-          topIds
-            .map((id) => {
-              const el = document.getElementById(`s-${id}`);
-              return el ? { id, at: (el.getBoundingClientRect().top + window.scrollY) / h } : null;
-            })
-            .filter((t): t is { id: string; at: number } => t !== null),
-        );
-        setView({ top: window.scrollY / h, size: Math.min(1, window.innerHeight / h) });
-      });
-    };
-    measure();
-    window.addEventListener('scroll', measure, { passive: true });
-    window.addEventListener('resize', measure);
-    const ro = new ResizeObserver(measure);
-    ro.observe(document.body);
-    return () => {
-      cancelAnimationFrame(raf);
-      window.removeEventListener('scroll', measure);
-      window.removeEventListener('resize', measure);
-      ro.disconnect();
-    };
-  }, [topIds]);
-
-  if (topIds.length < 3) return null;
-  return (
-    <div aria-hidden className="fixed top-[calc(env(safe-area-inset-top)+48px)] right-1 bottom-32 z-10 w-4 xl:hidden">
-      <div className="absolute inset-y-0 right-1.5 w-[2px] bg-line" />
-      <div className="absolute right-1.5 w-[2px] bg-faint" style={{ top: `${view.top * 100}%`, height: `${Math.max(4, view.size * 100)}%` }} />
-      {ticks.map((t) => (
-        <button
-          key={t.id}
-          type="button"
-          tabIndex={-1}
-          onClick={() => onJump(t.id)}
-          className="absolute right-0 h-3 w-4"
-          style={{ top: `calc(${t.at * 100}% - 6px)` }}
-        >
-          <span className="absolute top-1/2 right-0 h-px w-[6px] bg-muted" />
-        </button>
-      ))}
-    </div>
   );
 }

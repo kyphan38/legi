@@ -40,7 +40,7 @@ function QuoteItem({ quote, selected, focused, selecting, footer, onOpen, onMenu
       id={`q-${quote.id}`}
       data-quote={quote.id}
       tabIndex={-1}
-      className={`no-callout relative -mx-3 cursor-text rounded-md px-3 py-1.5 outline-none transition-colors ${selected ? 'bg-wash' : ''} ${focused ? 'ring-1 ring-faint' : ''} ${rise ? 'rise' : ''}`}
+      className={`group no-callout relative -mx-3 cursor-text rounded-md px-3 py-1.5 outline-none transition-colors ${selected ? 'bg-wash' : ''} ${focused ? 'shadow-[inset_2px_0_0_var(--faint)]' : ''} ${rise ? 'rise' : ''}`}
       style={rise ? { animationDelay: `${riseIndex * 25}ms` } : undefined}
       onPointerDown={(e) => {
         pressed.current = false;
@@ -73,12 +73,13 @@ function QuoteItem({ quote, selected, focused, selecting, footer, onOpen, onMenu
           {quote.kind === 'question' && <span className="mr-2 align-[0.1em] text-[12px] text-faint">question</span>}
           <QuoteText text={quote.text} />
         </div>
-        <div className="flex w-10 shrink-0 flex-col items-end gap-1 pt-[0.45em] text-[12px] text-faint tabular-nums">
-          {quote.page !== null && <span>{quote.page}</span>}
+        {/* The page is for finding the line again in the paper book: shown on hover, and in the editor. */}
+        <div className="flex w-8 shrink-0 flex-col items-end gap-1 pt-[0.5em] text-[12px] text-faint tabular-nums">
           {quote.favorite && <StarIcon size={11} filled />}
+          {quote.page !== null && <span className="opacity-0 transition-opacity group-hover:opacity-100">{quote.page}</span>}
         </div>
       </div>
-      {quote.note && <p className="mt-1 mr-13 pl-4 text-[14px] leading-relaxed whitespace-pre-wrap text-muted">{quote.note}</p>}
+      {quote.note && <p className="mt-1 mr-11 pl-4 text-[14px] leading-relaxed whitespace-pre-wrap text-muted">{quote.note}</p>}
       {footer}
     </article>
   );

@@ -128,7 +128,7 @@ function Daily({ day, continueTo }: { day: string; continueTo: string }) {
   return (
     <main className="paper flex min-h-dvh flex-col justify-center pb-[10dvh]">
       <div className="fade-in">
-        <p className="font-serif text-[calc(var(--quote-size)+2px)] leading-[1.75] whitespace-pre-wrap text-ink">
+        <p className="text-[calc(var(--quote-size)+2px)] leading-[1.75] whitespace-pre-wrap text-ink">
           <Typewriter text={quote.text} />
         </p>
         <p className="mt-6 text-[13px] text-faint">
@@ -148,7 +148,7 @@ function Daily({ day, continueTo }: { day: string; continueTo: string }) {
             <span className="text-muted">
               {dayOf(past.createdAt).slice(0, 4)} · {pastBook?.title ?? 'Inbox'}
             </span>
-            <span className="mt-1 block font-serif">{truncate(past.text.replace(/\*\*/g, ''), 80)}</span>
+            <span className="mt-1 block">{truncate(past.text.replace(/\*\*/g, ''), 80)}</span>
           </Link>
         )}
       </div>

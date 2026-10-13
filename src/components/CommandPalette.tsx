@@ -145,7 +145,7 @@ function Palette({ onClose }: { onClose: () => void }) {
                 onClick={() => run(it)}
                 className={`flex w-full items-baseline gap-3 px-5 py-2 text-left ${i === active ? 'bg-wash' : ''}`}
               >
-                <span className={`min-w-0 flex-1 ${it.quote ? 'line-clamp-2 font-serif text-[15px] leading-relaxed text-ink' : 'truncate text-[15px] text-ink'}`}>{it.label}</span>
+                <span className={`min-w-0 flex-1 ${it.quote ? 'line-clamp-2 text-[15px] leading-relaxed text-ink' : 'truncate text-[15px] text-ink'}`}>{it.label}</span>
                 {it.hint && <span className="max-w-[40%] shrink-0 truncate text-[12px] text-faint">{it.hint}</span>}
               </button>
             </li>

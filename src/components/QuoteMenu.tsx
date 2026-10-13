@@ -19,7 +19,7 @@ export default function QuoteMenu({ quote, onClose, onAction }: { quote: QuoteRo
     <Sheet open={quote !== null} onClose={onClose} label="Quote">
       {quote && (
         <>
-          <p className="mb-3 line-clamp-2 font-serif text-[15px] leading-relaxed text-muted">{quote.text.replace(/\*\*/g, '')}</p>
+          <p className="mb-3 line-clamp-2 text-[15px] leading-relaxed text-muted">{quote.text.replace(/\*\*/g, '')}</p>
           <ul className="text-[15px]">
             {items.map((it) => (
               <li key={it.a}>

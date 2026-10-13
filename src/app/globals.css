@@ -2,8 +2,8 @@
 
 /* ============================================================
    legi - design tokens (values from ../DESIGN.md, gray only)
-   Paper feel comes from type, not color: a system serif for quote text,
-   wide line height, a narrow column. No web font.
+   Paper feel comes from space, not color: wide line height, a narrow
+   column. System font only (a serif was tried and read worse, 2026-10-13).
    ============================================================ */
 
 :root {
@@ -23,7 +23,7 @@
   --spine-2: #b0b0b0;
   --spine-3: #636363;
   --spine-4: #3d3d3d;
-  --quote-size: 19px;
+  --quote-size: 18px;
   color-scheme: light;
 }
 
@@ -68,10 +68,10 @@
 }
 
 :root[data-size="s"] {
-  --quote-size: 17px;
+  --quote-size: 16px;
 }
 :root[data-size="l"] {
-  --quote-size: 21px;
+  --quote-size: 20px;
 }
 
 @theme inline {
@@ -85,7 +85,6 @@
   --color-line: var(--line);
   --color-line-strong: var(--line-strong);
   --color-wash: var(--wash);
-  --font-serif: ui-serif, "New York", "Noto Serif", Georgia, serif;
   --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
   --font-mono: ui-monospace, SFMono-Regular, Menlo, monospace;
   --ease-soft: cubic-bezier(0.2, 0.8, 0.2, 1);
@@ -145,10 +144,9 @@ textarea:focus-visible {
   padding: calc(env(safe-area-inset-top) + 20px) 20px 0;
 }
 
-/* Quote text: the only serif in the app. 1.75 leaves room for stacked
-   Vietnamese marks (ệ, ở, ữ) without touching the line above. */
+/* Quote text. 1.75 leaves room for stacked Vietnamese marks (ệ, ở, ữ)
+   without touching the line above. */
 .quote-text {
-  font-family: var(--font-serif);
   font-size: var(--quote-size);
   line-height: 1.75;
   overflow-wrap: anywhere;

@@ -15,7 +15,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useUid } from '@/components/AuthGate';
 import BookHeader from '@/components/BookHeader';
 import Composer, { type ComposerHandle } from '@/components/Composer';
-import { Minimap, OutlineBar, OutlineRail } from '@/components/Outline';
+import { OutlineBar, OutlineRail } from '@/components/Outline';
 import TopBar from '@/components/TopBar';
 import { useLibrary } from '@/contexts/LibraryContext';
 import { inField, scrollToQuote, useQuoteBoard } from '@/hooks/useQuoteBoard';
@@ -301,7 +301,6 @@ function BookPage({ book, focusQuote, startNew }: { book: BookRow; focusQuote: s
         {top.length > 0 && <div className="mt-10 space-y-5">{top.map((q) => board.renderItem(q, rise++))}</div>}
         {visibleNodes.map(renderNode)}
       </main>
-      <Minimap topIds={tree.map((n) => n.section.id)} onJump={jump} />
       <Composer
         ref={composer}
         uid={uid}

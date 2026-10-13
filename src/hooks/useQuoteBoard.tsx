@@ -82,8 +82,9 @@ export function useQuoteBoard(
     [uid, router],
   );
 
+  // A click edits; only j/k shows the focus bar.
   const open = useCallback((q: QuoteRow) => {
-    setFocusedId(q.id);
+    setFocusedId(null);
     setEditingId(q.id);
   }, []);
 

@@ -127,7 +127,7 @@ export default function SlowView() {
             key={quote.id}
             className={`pointer-events-none relative max-w-[32rem] transition-opacity ${leaving ? 'opacity-0 duration-[120ms]' : 'fade-in duration-[180ms]'}`}
           >
-            <p className={`${quote.kind === 'quote' ? 'font-serif text-ink' : 'text-muted'} text-[calc(var(--quote-size)+3px)] leading-[1.75] whitespace-pre-wrap`}>
+            <p className={`${quote.kind === 'quote' ? 'text-ink' : 'text-muted'} text-[calc(var(--quote-size)+3px)] leading-[1.75] whitespace-pre-wrap`}>
               {quote.kind === 'quote' ? <Typewriter text={quote.text} /> : <QuoteText text={quote.text} />}
             </p>
             {quote.note && <p className="mt-4 pl-4 text-[15px] leading-relaxed whitespace-pre-wrap text-muted">{quote.note}</p>}
