@@ -290,7 +290,8 @@ export function OutlineBar(props: Props & { path: string; open: boolean; onOpenC
         <button
           type="button"
           onClick={() => setOpen(true)}
-          className="fade-in fixed inset-x-0 top-0 z-10 border-b border-line bg-bg/95 pt-[env(safe-area-inset-top)] backdrop-blur-sm xl:hidden"
+          // Under the sticky TopBar text; it covers the bar's empty bottom padding.
+          className="fade-in fixed inset-x-0 top-[calc(env(safe-area-inset-top)+52px)] z-10 border-b border-line bg-bg/95 backdrop-blur-sm xl:hidden"
         >
           <span className="mx-auto block max-w-[36rem] truncate px-5 py-2 text-left text-[12px] text-faint">{props.path}</span>
         </button>

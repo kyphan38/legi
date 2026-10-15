@@ -245,7 +245,9 @@ function BookPage({ book, focusQuote, startNew }: { book: BookRow; focusQuote: s
       const el = document.getElementById(`s-${id}`);
       if (!el) return;
       const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
-      window.scrollTo({ top: el.getBoundingClientRect().top + window.scrollY - 56, behavior: reduce ? 'auto' : 'smooth' });
+      // Clear the sticky TopBar and the path line under it.
+      const bar = document.querySelector('[data-topbar]')?.getBoundingClientRect().bottom ?? 0;
+      window.scrollTo({ top: el.getBoundingClientRect().top + window.scrollY - bar - 44, behavior: reduce ? 'auto' : 'smooth' });
     });
   };
 
