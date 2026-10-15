@@ -27,6 +27,9 @@ type Props = {
   /** Section removed: its quotes go to `parentId`. */
   onRemove: (id: string, parentId: string | null) => void;
   onFoldAll: (fold: boolean) => void;
+  /** Quotes whose page points to another section. */
+  misplaced: number;
+  onPlaceByPage: () => void;
 };
 
 function OutlineList({ nodes, counts, activeId, onJump, showCounts = true }: Pick<Props, 'nodes' | 'counts' | 'activeId' | 'onJump'> & { showCounts?: boolean }) {
@@ -49,7 +52,16 @@ function OutlineList({ nodes, counts, activeId, onJump, showCounts = true }: Pic
   );
 }
 
-function EditOutline({ nodes, sections, counts, onChange, onRemove, onClose }: Pick<Props, 'nodes' | 'sections' | 'counts' | 'onChange' | 'onRemove'> & { onClose: () => void }) {
+function EditOutline({
+  nodes,
+  sections,
+  counts,
+  onChange,
+  onRemove,
+  misplaced,
+  onPlaceByPage,
+  onClose,
+}: Pick<Props, 'nodes' | 'sections' | 'counts' | 'onChange' | 'onRemove' | 'misplaced' | 'onPlaceByPage'> & { onClose: () => void }) {
   const [menuId, setMenuId] = useState<string | null>(null);
   const [confirmId, setConfirmId] = useState<string | null>(null);
   const [toc, setToc] = useState<string | null>(null);
@@ -208,10 +220,15 @@ function EditOutline({ nodes, sections, counts, onChange, onRemove, onClose }: P
       </ul>
 
       {toc === null ? (
-        <div className="mt-4 flex gap-4 text-[13px] text-faint">
+        <div className="mt-4 flex flex-wrap gap-x-4 gap-y-1 text-[13px] text-faint">
           <button type="button" onClick={() => setToc('')} className="hover:text-ink">
             paste contents
           </button>
+          {misplaced > 0 && (
+            <button type="button" onClick={onPlaceByPage} className="text-muted hover:text-ink">
+              place {misplaced} {misplaced === 1 ? 'quote' : 'quotes'} by page
+            </button>
+          )}
           <button type="button" onClick={onClose} className="ml-auto text-ink">
             done
           </button>

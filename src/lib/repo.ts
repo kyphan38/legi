@@ -150,6 +150,14 @@ export function moveQuotes(uid: string, rows: QuoteRow[], bookId: string | null,
   );
 }
 
+/** Each quote to its own section in the same book, with one undo. */
+export function placeQuotes(uid: string, moves: { quote: QuoteRow; sectionId: string }[], now = Date.now()): void {
+  if (moves.length === 0) return;
+  const before = moves.map(({ quote }) => ({ id: quote.id, sectionId: quote.sectionId }));
+  inBatches(moves, (b, m) => b.update(quoteRef(uid, m.quote.id), { sectionId: m.sectionId, updatedAt: now }), 'placeQuotes');
+  pushUndo('Moved', () => inBatches(before, (b, q) => b.update(quoteRef(uid, q.id), { sectionId: q.sectionId, updatedAt: Date.now() }), 'undoPlace'));
+}
+
 /** rows in display order. Keeps the first id; the others go to Trash. */
 export function mergeQuotes(uid: string, rows: QuoteRow[], now = Date.now()): void {
   if (rows.length < 2) return;

@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 
-import { addSection, addSectionAfter, buildTree, flatten, indent, moveDown, moveUp, outdent, parseToc, pathOf, removeSection, sectionForPage, setStartPage, subtreeIds } from '@/lib/outline';
+import { addSection, addSectionAfter, buildTree, flatten, indent, moveDown, moveUp, outdent, misplacedByPage, parseToc, pathOf, removeSection, sectionForPage, setStartPage, subtreeIds } from '@/lib/outline';
 import type { Section } from '@/types/legi';
 
 const S = (id: string, parentId: string | null, order: number, title = id): Section => ({ id, title, parentId, order });
@@ -94,4 +94,18 @@ test('sectionForPage: last start at or before the page, deeper wins a tie', () =
   assert.equal(sectionForPage(s, 99), 'b');
   assert.equal(sectionForPage(s, null), null);
   assert.equal(sectionForPage(base, 50), null);
+});
+
+test('misplacedByPage: only quotes with a page that points elsewhere', () => {
+  const s = setStartPage(setStartPage(base, 'a', 1), 'b', 40);
+  const quotes = [
+    { id: 'q1', sectionId: 'a', page: 43 },
+    { id: 'q2', sectionId: 'b', page: 43 },
+    { id: 'q3', sectionId: 'a', page: null },
+    { id: 'q4', sectionId: null, page: 5 },
+  ];
+  assert.deepEqual(
+    misplacedByPage(s, quotes).map((m) => `${m.quote.id}>${m.sectionId}`),
+    ['q1>b', 'q4>a'],
+  );
 });

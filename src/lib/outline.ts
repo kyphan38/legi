@@ -121,6 +121,16 @@ export function sectionForPage(sections: Section[], page: number | null): string
   return best?.id ?? null;
 }
 
+/** Quotes whose page says they belong in another section. Quotes without a page stay. */
+export function misplacedByPage<Q extends { sectionId: string | null; page: number | null }>(sections: Section[], quotes: Q[]): { quote: Q; sectionId: string }[] {
+  const out: { quote: Q; sectionId: string }[] = [];
+  for (const q of quotes) {
+    const to = sectionForPage(sections, q.page);
+    if (to && to !== q.sectionId) out.push({ quote: q, sectionId: to });
+  }
+  return out;
+}
+
 export function renameSection(sections: Section[], id: string, title: string): Section[] {
   return sections.map((s) => (s.id === id ? { ...s, title: title.trim() } : s));
 }

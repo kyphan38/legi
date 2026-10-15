@@ -19,8 +19,8 @@ import { OutlineBar, OutlineRail } from '@/components/Outline';
 import TopBar from '@/components/TopBar';
 import { useLibrary } from '@/contexts/LibraryContext';
 import { inField, scrollToQuote, useQuoteBoard } from '@/hooks/useQuoteBoard';
-import { buildTree, flatten, pathOf, subtreeIds, type TreeNode } from '@/lib/outline';
-import { moveQuotes, updateBook } from '@/lib/repo';
+import { buildTree, flatten, misplacedByPage, pathOf, subtreeIds, type TreeNode } from '@/lib/outline';
+import { moveQuotes, placeQuotes, updateBook } from '@/lib/repo';
 import { readJson, writeJson } from '@/lib/store';
 import type { BookRow, QuoteRow, Section } from '@/types/legi';
 
@@ -104,6 +104,9 @@ function BookPage({ book, focusQuote, startNew }: { book: BookRow; focusQuote: s
     }
     return m;
   }, [quotes, known]);
+
+  // Quotes saved before the sections had first pages, now in the wrong place.
+  const misplaced = useMemo(() => misplacedByPage(book.sections, quotes), [book.sections, quotes]);
 
   // Count per section includes everything below it.
   const counts = useMemo(() => {
@@ -263,6 +266,8 @@ function BookPage({ book, focusQuote, startNew }: { book: BookRow; focusQuote: s
       if (rows.length) moveQuotes(uid, rows, book.id, parentId);
     },
     onFoldAll: foldAll,
+    misplaced: misplaced.length,
+    onPlaceByPage: () => placeQuotes(uid, misplaced),
   };
   const activePath = pathOf(book.sections, activeId)
     .map((s) => s.title)

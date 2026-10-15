@@ -938,7 +938,8 @@ cách dùng khó tìm ra (UX). Code đã hỗ trợ cây nhiều cấp.
   (giữ ngữ cảnh dính như cũ). Có test.
 - Dùng ở: Composer khi gõ `p.` (đổi chip chương, vẫn bấm đổi tay được), `/capture/` khi AI đọc
   được số trang (ưu tiên hơn đoán theo `runningHead`).
-- Không tự chuyển quote cũ. Có thể thêm nút `sort quotes by page` trong `edit` sau, nếu cần.
+- Không tự chuyển quote cũ. Trong `edit` có nút `place N quotes by page` (chỉ hiện khi N > 0,
+  undo được) để chuyển quote cũ có số trang vào đúng mục.
 
 **4. Ghi câu hay ngoài sách (YouTube, web, bạn bè, ...).** Chủ app chọn **A** (2026-10-15).
 - Đã làm: `format` thêm `video | web | person` (rules + `types`), `src/lib/source.ts`
