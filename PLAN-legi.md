@@ -940,8 +940,13 @@ cách dùng khó tìm ra (UX). Code đã hỗ trợ cây nhiều cấp.
   được số trang (ưu tiên hơn đoán theo `runningHead`).
 - Không tự chuyển quote cũ. Có thể thêm nút `sort quotes by page` trong `edit` sau, nếu cần.
 
-**4. Ghi câu hay ngoài sách (YouTube, web, bạn bè, ...).** Khả thi, nhưng **đổi mô hình dữ
-liệu**, chờ chủ app chọn trước khi code.
+**4. Ghi câu hay ngoài sách (YouTube, web, bạn bè, ...).** Chủ app chọn **A** (2026-10-15).
+- Đã làm: `format` thêm `video | web | person` (rules + `types`), `src/lib/source.ts`
+  (`isSource`). Kệ sách bỏ qua nguồn; dưới kệ có nhóm `elsewhere` (danh sách + `+ source`, chọn
+  `video · web · person`). Trang nguồn: không có số trang, trạng thái đọc, ô `p.`; có `by`,
+  `kind`, `link` (dùng lại `pdfUrl`).
+- **Phải deploy rules mới** (`npm run rules && firebase deploy --only firestore:rules`) trước khi
+  thêm nguồn trên bản thật, nếu không lệnh ghi bị từ chối.
 - Hiện có: Inbox (`bookId = null`) nhận được câu bất kỳ, nhưng không ghi được nguồn và lẫn với
   câu chưa phân loại.
 - Phương án A (đề xuất): dùng lại `Book` làm "nguồn". Thêm `format` mới `'video' | 'web' |
@@ -951,8 +956,14 @@ liệu**, chờ chủ app chọn trước khi code.
   đơn giản), hoặc một nhóm `elsewhere` dưới kệ.
 - Phương án B: một nguồn chung `Elsewhere`, mỗi quote ghi thêm `from` (chữ tự do, ví dụ
   `Ali Abdaal`, `anh Tuấn`). Ít màn hình hơn, nhưng phải sửa rules của quote và khó xem theo nguồn.
-- Câu hỏi cho chủ app: một người / một kênh có cần trang riêng như một cuốn sách không? Có →
-  A. Chỉ cần ghi "ai nói" → B.
+
+Checklist P6:
+- [ ] iPhone: chụp 1 trang → kéo 4 góc → `use` → AI chỉ đọc phần đã cắt.
+- [ ] iPhone: `contents` → `edit` → `···` → `add inside` dưới một mục con, gõ tên tiếng Việt.
+- [ ] iPhone: chạm giữ một mục trong `edit` mở menu, không bị huỷ vì ngón tay rung.
+- [ ] Đặt `p.` cho vài mục → gõ số trang ở ô nhập → chip chương đổi đúng.
+- [ ] `paste contents` với mục lục có số trang ở cuối dòng.
+- [ ] Thêm một nguồn `person` → ghi 1 câu → câu đó có trong tìm kiếm, Daily, export.
 
 ---
 

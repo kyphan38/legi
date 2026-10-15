@@ -1,7 +1,8 @@
 // Data model. Mirrors firestore.rules.template: change both together.
 
 export type BookStatus = 'reading' | 'finished' | 'later';
-export type BookFormat = 'paper' | 'pdf';
+/** video / web / person: a source outside books (a channel, a site, a friend). Not on the shelf. */
+export type BookFormat = 'paper' | 'pdf' | 'video' | 'web' | 'person';
 /** 'question' only gets UI in P5. */
 export type QuoteKind = 'quote' | 'thought' | 'question';
 export type QuoteSource = 'typed' | 'paste' | 'ocr';
@@ -25,7 +26,7 @@ export type Book = {
   format: BookFormat;
   totalPages: number | null;
   currentPage: number | null;
-  /** Only a link, the file is never stored. */
+  /** Only a link, the file is never stored. Sources keep their link here too. */
   pdfUrl: string | null;
   /** Answer to "What stays with you?" when the book is finished. */
   takeaway: string | null;

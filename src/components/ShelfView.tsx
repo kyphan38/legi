@@ -11,8 +11,9 @@ import { useSnapCount } from '@/hooks/useSnapCount';
 import { useLibrary } from '@/contexts/LibraryContext';
 import { shelfViewStore } from '@/lib/prefs';
 import { createBook } from '@/lib/repo';
+import { isSource, SOURCE_FORMATS } from '@/lib/source';
 import { spineShade, stackSize } from '@/lib/spine';
-import type { BookRow, BookStatus } from '@/types/legi';
+import type { BookFormat, BookRow, BookStatus } from '@/types/legi';
 
 const SHELVES: BookStatus[] = ['reading', 'finished', 'later'];
 
@@ -24,6 +25,9 @@ export default function ShelfView() {
   const params = useSearchParams();
   const [adding, setAdding] = useState(() => params.get('add') === '1');
   const [title, setTitle] = useState('');
+  const [addingSource, setAddingSource] = useState(false);
+  const [sourceName, setSourceName] = useState('');
+  const [sourceFormat, setSourceFormat] = useState<BookFormat>('video');
 
   const inbox = byBook.get('')?.length ?? 0;
   const snaps = useSnapCount(uid);
@@ -39,9 +43,20 @@ export default function ShelfView() {
     router.push(`/book/?id=${id}&new=1`);
   };
 
+  const addSource = () => {
+    const t = sourceName.trim();
+    if (!t) return;
+    const id = createBook(uid, t.slice(0, 300), Date.now(), sourceFormat);
+    setSourceName('');
+    setAddingSource(false);
+    router.push(`/book/?id=${id}`);
+  };
+
+  const shelfBooks = liveBooks.filter((b) => !isSource(b));
+  const sources = liveBooks.filter(isSource).sort((a, b) => b.lastOpenedAt - a.lastOpenedAt);
   const groups = SHELVES.map((s) => ({
     status: s,
-    books: liveBooks.filter((b) => b.status === s).sort((a, b) => b.lastOpenedAt - a.lastOpenedAt),
+    books: shelfBooks.filter((b) => b.status === s).sort((a, b) => b.lastOpenedAt - a.lastOpenedAt),
   }));
 
   const addForm = (
@@ -95,10 +110,10 @@ export default function ShelfView() {
         </div>
       </div>
 
-      {loaded && liveBooks.length === 0 && <div className="mt-10">{addForm}</div>}
+      {loaded && shelfBooks.length === 0 && <div className="mt-10">{addForm}</div>}
 
       {groups.map(({ status, books }) =>
-        books.length === 0 && !(status === 'reading' && liveBooks.length > 0) ? null : (
+        books.length === 0 && !(status === 'reading' && shelfBooks.length > 0) ? null : (
           <section key={status} className="mt-10">
             <h2 className="text-[13px] text-faint">{status}</h2>
             {view === 'shelf' ? (
@@ -147,6 +162,60 @@ export default function ShelfView() {
             )}
           </section>
         ),
+      )}
+
+      {/* Quotes from outside books: channels, sites, people. A plain list, never a stack. */}
+      {loaded && (
+        <section className="mt-10">
+          <h2 className="text-[13px] text-faint">elsewhere</h2>
+          <ul className="mt-2">
+            {sources.map((b) => (
+              <li key={b.id}>
+                <Link href={`/book/?id=${b.id}`} className="block py-2.5">
+                  <span className="block text-[16px] text-ink">{b.title}</span>
+                  <span className="block text-[13px] text-faint">{[b.author, b.format, `${count(b)} ${count(b) === 1 ? 'quote' : 'quotes'}`].filter(Boolean).join(' · ')}</span>
+                </Link>
+              </li>
+            ))}
+            <li className="pt-2">
+              {addingSource ? (
+                <div>
+                  <input
+                    autoFocus
+                    value={sourceName}
+                    onChange={(e) => setSourceName(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.nativeEvent.isComposing || e.keyCode === 229) return;
+                      if (e.key === 'Enter') {
+                        e.preventDefault();
+                        addSource();
+                      } else if (e.key === 'Escape') setAddingSource(false);
+                    }}
+                    placeholder="Channel, site or person"
+                    aria-label="Source name"
+                    lang="vi"
+                    spellCheck={false}
+                    className="w-full border-b border-line-strong bg-transparent py-2 text-[16px] text-ink outline-none placeholder:text-faint"
+                  />
+                  <div className="mt-2 flex gap-4 text-[13px]" role="radiogroup" aria-label="Kind of source">
+                    {SOURCE_FORMATS.map((f) => (
+                      <button key={f} type="button" role="radio" aria-checked={sourceFormat === f} onClick={() => setSourceFormat(f)} className={sourceFormat === f ? 'text-ink' : 'text-faint hover:text-muted'}>
+                        {f}
+                      </button>
+                    ))}
+                    <button type="button" onClick={addSource} className="ml-auto text-ink">
+                      add
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <button type="button" onClick={() => setAddingSource(true)} className="py-2 text-[14px] text-faint hover:text-ink">
+                  + source
+                </button>
+              )}
+            </li>
+          </ul>
+        </section>
       )}
 
       <div className="mt-14 flex gap-4 text-[13px] text-faint">

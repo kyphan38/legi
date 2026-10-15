@@ -8,6 +8,7 @@ import { bookToMarkdown, toJson, toMarkdown } from '@/lib/export';
 import { compareQuotes, orderBetween, sortQuotes } from '@/lib/order';
 import { mergeFields, splitText } from '@/lib/quote-ops';
 import { markRanges, searchAll } from '@/lib/search';
+import { isSource } from '@/lib/source';
 import { spineShade, stackSize } from '@/lib/spine';
 import { daysLeft, purgeable, TRASH_MS, trashedWith } from '@/lib/trash';
 import { lastUndoStore, pushUndo, resetUndo, undo, undoSize } from '@/lib/undo';
@@ -210,4 +211,11 @@ test('pile sizes stay in bounds', () => {
     assert.ok(s.width >= 68 && s.width <= 92);
     assert.ok(s.shift >= 0 && s.width + s.shift <= 100);
   }
+});
+
+test('isSource: video, web and person are sources, paper and pdf are books', () => {
+  assert.deepEqual(
+    (['paper', 'pdf', 'video', 'web', 'person'] as const).map((format) => isSource({ format })),
+    [false, false, true, true, true],
+  );
 });

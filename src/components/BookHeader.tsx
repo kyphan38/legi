@@ -7,12 +7,12 @@ import { useLibrary } from '@/contexts/LibraryContext';
 import { bookToMarkdown } from '@/lib/export';
 import { trashBook, updateBook } from '@/lib/repo';
 import { copyText } from '@/lib/share-file';
+import { BOOK_FORMATS, isSource, SOURCE_FORMATS } from '@/lib/source';
 import { readJson, writeJson } from '@/lib/store';
 import { tidy } from '@/lib/typo';
-import type { BookFormat, BookRow, BookStatus } from '@/types/legi';
+import type { BookRow, BookStatus } from '@/types/legi';
 
 const STATUSES: BookStatus[] = ['reading', 'finished', 'later'];
-const FORMATS: BookFormat[] = ['paper', 'pdf'];
 
 function toPages(v: string): number | null {
   const n = Math.floor(Number(v.replace(/\D/g, '')));
@@ -61,7 +61,7 @@ export default function BookHeader({ uid, book, onDeleted }: { uid: string; book
           )}
           {book.pdfUrl && (
             <a href={book.pdfUrl} target="_blank" rel="noreferrer" className="hover:text-ink">
-              pdf
+              {isSource(book) ? 'link' : 'pdf'}
             </a>
           )}
         </div>
@@ -84,11 +84,11 @@ export default function BookHeader({ uid, book, onDeleted }: { uid: string; book
           </button>
           {!confirmDelete ? (
             <button type="button" onClick={() => setConfirmDelete(true)} className="hover:text-ink">
-              delete book
+              delete {isSource(book) ? 'source' : 'book'}
             </button>
           ) : (
             <span className="flex gap-3 text-muted">
-              Delete book and {count} {count === 1 ? 'quote' : 'quotes'}?
+              Delete {isSource(book) ? 'source' : 'book'} and {count} {count === 1 ? 'quote' : 'quotes'}?
               <button
                 type="button"
                 onClick={() => {
@@ -145,6 +145,8 @@ function BookForm({ uid, book, onStatus, count }: { uid: string; book: BookRow; 
   const [pages, setPages] = useState(book.totalPages ? String(book.totalPages) : '');
   const [pdf, setPdf] = useState(book.pdfUrl ?? '');
   const [at, setAt] = useState(book.currentPage ? String(book.currentPage) : '');
+  // A source has no pages and is never "finished"; it keeps a link instead.
+  const source = isSource(book);
 
   return (
     <div className="text-[15px]">
@@ -161,7 +163,7 @@ function BookForm({ uid, book, onStatus, count }: { uid: string; book: BookRow; 
           className={inputClass}
         />
       </Field>
-      <Field label="author">
+      <Field label={source ? 'by' : 'author'}>
         <input
           value={author}
           onChange={(e) => setAuthor(e.target.value)}
@@ -169,30 +171,34 @@ function BookForm({ uid, book, onStatus, count }: { uid: string; book: BookRow; 
           className={inputClass}
         />
       </Field>
-      <Field label="pages">
-        <input
-          value={pages}
-          inputMode="numeric"
-          onChange={(e) => setPages(e.target.value.replace(/\D/g, '').slice(0, 5))}
-          onBlur={() => toPages(pages) !== book.totalPages && updateBook(uid, book.id, { totalPages: toPages(pages) })}
-          className={`${inputClass} tabular-nums`}
-        />
-      </Field>
-      <Field label="at page">
-        <input
-          value={at}
-          inputMode="numeric"
-          onChange={(e) => setAt(e.target.value.replace(/\D/g, '').slice(0, 5))}
-          onBlur={() => toPages(at) !== book.currentPage && updateBook(uid, book.id, { currentPage: toPages(at) })}
-          className={`${inputClass} tabular-nums`}
-        />
-        <span className="shrink-0 text-[13px] text-faint">
-          {count} {count === 1 ? 'quote' : 'quotes'}
-        </span>
-      </Field>
-      <Choice label="format" value={book.format} options={FORMATS} onPick={(format) => updateBook(uid, book.id, { format })} />
-      {book.format === 'pdf' && (
-        <Field label="pdf link">
+      {!source && (
+        <>
+          <Field label="pages">
+            <input
+              value={pages}
+              inputMode="numeric"
+              onChange={(e) => setPages(e.target.value.replace(/\D/g, '').slice(0, 5))}
+              onBlur={() => toPages(pages) !== book.totalPages && updateBook(uid, book.id, { totalPages: toPages(pages) })}
+              className={`${inputClass} tabular-nums`}
+            />
+          </Field>
+          <Field label="at page">
+            <input
+              value={at}
+              inputMode="numeric"
+              onChange={(e) => setAt(e.target.value.replace(/\D/g, '').slice(0, 5))}
+              onBlur={() => toPages(at) !== book.currentPage && updateBook(uid, book.id, { currentPage: toPages(at) })}
+              className={`${inputClass} tabular-nums`}
+            />
+            <span className="shrink-0 text-[13px] text-faint">
+              {count} {count === 1 ? 'quote' : 'quotes'}
+            </span>
+          </Field>
+        </>
+      )}
+      <Choice label={source ? 'kind' : 'format'} value={book.format} options={source ? SOURCE_FORMATS : BOOK_FORMATS} onPick={(format) => updateBook(uid, book.id, { format })} />
+      {(source || book.format === 'pdf') && (
+        <Field label={source ? 'link' : 'pdf link'}>
           <input
             value={pdf}
             type="url"
@@ -205,7 +211,7 @@ function BookForm({ uid, book, onStatus, count }: { uid: string; book: BookRow; 
           />
         </Field>
       )}
-      <Choice label="status" value={book.status} options={STATUSES} onPick={onStatus} />
+      {!source && <Choice label="status" value={book.status} options={STATUSES} onPick={onStatus} />}
     </div>
   );
 }

@@ -23,6 +23,7 @@ import { findSimilar, MIN_CHARS } from '@/lib/dup';
 import { toggleEmph } from '@/lib/emph';
 import { addSection, buildTree, flatten, pathOf, sectionForPage } from '@/lib/outline';
 import { takePageToken } from '@/lib/page-token';
+import { isSource } from '@/lib/source';
 import { cleanPaste, countBlocks, splitBlocks, type Block } from '@/lib/paste';
 import { createQuotes, updateBook, type QuoteInput } from '@/lib/repo';
 import { readJson, writeJson } from '@/lib/store';
@@ -74,6 +75,8 @@ const Composer = forwardRef<ComposerHandle, Props>(function Composer({ uid, book
   useImperativeHandle(ref, () => ({ focus: () => textRef.current?.focus() }), []);
 
   const sections = useMemo(() => book?.sections ?? [], [book?.sections]);
+  // Sources (a channel, a site, a person) have no pages.
+  const paged = !book || !isSource(book);
   // No choice yet → the last section of the book (where a reader usually is).
   const fallbackCtx = useMemo(() => flatten(buildTree(sections)).at(-1)?.section.id ?? null, [sections]);
   const validCtx = ctx === '' ? null : ctx === null ? fallbackCtx : sections.some((s) => s.id === ctx) ? ctx : fallbackCtx;
@@ -398,32 +401,34 @@ const Composer = forwardRef<ComposerHandle, Props>(function Composer({ uid, book
               {chars}
             </span>
           )}
-          <label className="flex shrink-0 items-baseline gap-0.5">
-            <span>p.</span>
-            <input
-              ref={pageRef}
-              value={page}
-              onChange={(e) => {
-                const v = e.target.value.replace(/\D/g, '').slice(0, 5);
-                setPage(v);
-                saveDraft({ page: v });
-                if (v) followPage(Number(v));
-              }}
-              onKeyDown={(e) => {
-                if (e.nativeEvent.isComposing) return;
-                if (e.key === 'Tab' && e.shiftKey) {
-                  e.preventDefault();
-                  textRef.current?.focus();
-                } else if (e.key === 'Enter') {
-                  e.preventDefault();
-                  commit();
-                }
-              }}
-              inputMode="numeric"
-              aria-label="Page"
-              className="w-[4.5ch] bg-transparent py-1 text-[16px] text-faint tabular-nums outline-none focus:text-ink md:text-[13px]"
-            />
-          </label>
+          {paged && (
+            <label className="flex shrink-0 items-baseline gap-0.5">
+              <span>p.</span>
+              <input
+                ref={pageRef}
+                value={page}
+                onChange={(e) => {
+                  const v = e.target.value.replace(/\D/g, '').slice(0, 5);
+                  setPage(v);
+                  saveDraft({ page: v });
+                  if (v) followPage(Number(v));
+                }}
+                onKeyDown={(e) => {
+                  if (e.nativeEvent.isComposing) return;
+                  if (e.key === 'Tab' && e.shiftKey) {
+                    e.preventDefault();
+                    textRef.current?.focus();
+                  } else if (e.key === 'Enter') {
+                    e.preventDefault();
+                    commit();
+                  }
+                }}
+                inputMode="numeric"
+                aria-label="Page"
+                className="w-[4.5ch] bg-transparent py-1 text-[16px] text-faint tabular-nums outline-none focus:text-ink md:text-[13px]"
+              />
+            </label>
+          )}
           <StatusDot inline />
           <button
             type="button"

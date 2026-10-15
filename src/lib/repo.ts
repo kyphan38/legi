@@ -14,7 +14,7 @@ import { getDb } from '@/lib/firebase-client';
 import { mergeFields, splitText } from '@/lib/quote-ops';
 import { purgeable, trashedWith } from '@/lib/trash';
 import { pushUndo } from '@/lib/undo';
-import type { Book, BookRow, DailyPick, Quote, QuoteKind, QuoteRow, QuoteSource } from '@/types/legi';
+import type { Book, BookFormat, BookRow, DailyPick, Quote, QuoteKind, QuoteRow, QuoteSource } from '@/types/legi';
 
 const warn = (what: string) => (err: unknown) => console.warn(`[repo] ${what} failed`, err);
 
@@ -44,13 +44,13 @@ export function newBookId(uid: string): string {
   return doc(booksCol(uid)).id;
 }
 
-export function createBook(uid: string, title: string, now = Date.now()): string {
+export function createBook(uid: string, title: string, now = Date.now(), format: BookFormat = 'paper'): string {
   const id = newBookId(uid);
   const book: Book = {
     title: title.trim(),
     author: '',
     status: 'reading',
-    format: 'paper',
+    format,
     totalPages: null,
     currentPage: null,
     pdfUrl: null,
