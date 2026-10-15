@@ -898,6 +898,62 @@ Checklist:
 - [ ] Tắt mạng → chụp 2 ảnh → `Snaps 2` → bật mạng → xử lý được.
 - [ ] Email khác gọi `extractPage` bị `permission-denied`.
 
+### P6 - Góp ý sau khi dùng thật (2026-10-15)
+
+**1. Cắt ảnh ngay sau khi chụp.** Khả thi, không cần thư viện.
+- Hiện tại: `CameraButton` → `shrinkImage` → `/capture/`, không có bước cắt. Camera iOS
+  (`<input type="file">`) cũng không cho cắt.
+- Cách làm: sau khi chọn ảnh, mở màn cắt toàn màn hình: ảnh + khung chữ nhật có 4 góc kéo được
+  (pointer events tự viết, đúng luật "không thư viện kéo thả"). `use` / `skip`. Nhiều ảnh thì
+  cắt lần lượt. Cắt bằng canvas (`drawImage` với vùng nguồn) **trước** `shrinkImage`, nên ảnh cắt
+  vẫn nét.
+- Lợi: AI chỉ đọc vùng cần, ít đọc nhầm trang bên cạnh, ảnh nhỏ hơn.
+- Hàm thuần `cropRect(natural, box)` (tính vùng cắt theo toạ độ ảnh thật) có test.
+- Snap offline: cắt trước khi lưu snap, không cắt lại sau.
+
+**2. Không thêm được mục con dưới mục con trên điện thoại.** Không phải lỗi dữ liệu, mà là
+cách dùng khó tìm ra (UX). Code đã hỗ trợ cây nhiều cấp.
+- Cách thêm hiện tại: chạm tên chương trong ô nhập → sheet `Chapter`. Ô `new section` có
+  `same level · inside <mục đang chọn> · top level`. `inside` luôn là **mục đang chọn**, không
+  phải mục mình muốn. Muốn thêm `edf` dưới `abc` phải: chọn `abc` (sheet đóng lại) → mở lại sheet
+  → gõ `edf` → chạm `inside abc`. Nếu đang chọn `Chương 1` thì `inside` chỉ tạo mục ngang hàng `abc`.
+- `contents` → `edit` không có nút thêm mục; chỉ có `paste contents`. `indent` cần có mục ngang
+  hàng ở trên, nên phải tạo mục trước rồi mới thụt vào được.
+- Nghi lỗi thật (cần thử trên iPhone): chạm giữ trong `edit` dễ bị huỷ vì ngón tay rung tạo
+  `pointermove`; iOS còn hiện kính lúp khi chạm giữ vào ô nhập. Nút `···` vẫn dùng được.
+- Sửa:
+  - Trong `edit`, menu `···` của mỗi mục thêm `add inside` và `add below`: tạo mục rỗng đúng chỗ
+    và focus vào ô đó để gõ tên luôn.
+  - Trong sheet `Chapter`: chạm giữ (hoặc nút `+` nhỏ cạnh mỗi mục) để thêm mục con dưới mục đó
+    mà không cần chọn trước.
+  - Chạm giữ chỉ huỷ khi ngón tay đi xa hơn ~10px, không huỷ ở mọi `pointermove`.
+
+**3. Trang bắt đầu cho mỗi mục, quote tự vào đúng mục theo số trang.** Khả thi.
+- Dữ liệu: `Section.startPage: number | null`. Rules chỉ kiểm `sections` là list ≤ 500, nên
+  **không cần sửa rules**; sửa `types/legi.ts` và đọc dữ liệu cũ thiếu trường thì coi là `null`.
+- Nhập: trong `edit`, mỗi mục có ô số nhỏ `p.` bên phải. `paste contents` đọc số trang ở cuối
+  dòng (`1.1 Thói quen ...... 23` → title `1.1 Thói quen`, `startPage 23`).
+- Hàm thuần `sectionForPage(sections, page)`: lấy mục có `startPage` lớn nhất mà ≤ `page`;
+  bằng nhau thì lấy mục sâu hơn (mục con thắng chương). Không mục nào có `startPage` → `null`
+  (giữ ngữ cảnh dính như cũ). Có test.
+- Dùng ở: Composer khi gõ `p.` (đổi chip chương, vẫn bấm đổi tay được), `/capture/` khi AI đọc
+  được số trang (ưu tiên hơn đoán theo `runningHead`).
+- Không tự chuyển quote cũ. Có thể thêm nút `sort quotes by page` trong `edit` sau, nếu cần.
+
+**4. Ghi câu hay ngoài sách (YouTube, web, bạn bè, ...).** Khả thi, nhưng **đổi mô hình dữ
+liệu**, chờ chủ app chọn trước khi code.
+- Hiện có: Inbox (`bookId = null`) nhận được câu bất kỳ, nhưng không ghi được nguồn và lẫn với
+  câu chưa phân loại.
+- Phương án A (đề xuất): dùng lại `Book` làm "nguồn". Thêm `format` mới `'video' | 'web' |
+  'person'` (sửa rules `format in [...]`), `author` = kênh / trang / người, thêm `url` (dùng lại
+  `pdfUrl` hoặc trường mới). Mọi thứ đã có (quote, thought, Daily, tìm kiếm, export, mục con)
+  chạy luôn. Kệ sách chỉ hiện `paper`/`pdf`; nguồn khác vào một trang `/sources/` (danh sách
+  đơn giản), hoặc một nhóm `elsewhere` dưới kệ.
+- Phương án B: một nguồn chung `Elsewhere`, mỗi quote ghi thêm `from` (chữ tự do, ví dụ
+  `Ali Abdaal`, `anh Tuấn`). Ít màn hình hơn, nhưng phải sửa rules của quote và khó xem theo nguồn.
+- Câu hỏi cho chủ app: một người / một kênh có cần trang riêng như một cuốn sách không? Có →
+  A. Chỉ cần ghi "ai nói" → B.
+
 ---
 
 ## 8. Những gì KHÔNG làm
@@ -951,3 +1007,5 @@ Checklist:
 | 2026-10-13 | Nút `···` khi rê chuột vào quote (Mac); `move` mở thẳng các mục của cuốn đang đọc, `other book` để sang cuốn khác | Chuột phải / chạm giữ khó tìm ra |
 | 2026-10-13 | Bỏ nhập từ Google Play Books | Chủ app không cần; PDF thì copy rồi dán |
 | 2026-10-13 | Ô nhập còn 1 hàng điều khiển: chương · loại (bấm để đổi) · + note · p. · save; `B` chỉ hiện khi bôi đen; chưa chọn chương thì mặc định chương cuối của sách | Bớt nút; không còn `no chapter` khi sách đã có chương |
+| 2026-10-15 | P6: cắt ảnh sau khi chụp; `add inside` / `add below` trong `edit`; chạm mục khi đang gõ tên mới để chọn chỗ đặt; `startPage` cho mục, quote tự vào mục theo số trang | Góp ý sau khi dùng thật trên điện thoại |
+| 2026-10-15 | Câu hay ngoài sách: phương án A, mỗi nguồn (video, web, người) là một `Book` với `format` mới, không lên kệ sách | Chủ app muốn xem lại theo từng nguồn như một cuốn sách |
