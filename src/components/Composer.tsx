@@ -21,7 +21,7 @@ import { useLibrary } from '@/contexts/LibraryContext';
 import { clearDraft, readDraft, writeDraft } from '@/lib/draft';
 import { findSimilar, MIN_CHARS } from '@/lib/dup';
 import { toggleEmph } from '@/lib/emph';
-import { addSection, buildTree, flatten, pathOf } from '@/lib/outline';
+import { addSection, buildTree, flatten, pathOf, sectionForPage } from '@/lib/outline';
 import { takePageToken } from '@/lib/page-token';
 import { cleanPaste, countBlocks, splitBlocks, type Block } from '@/lib/paste';
 import { createQuotes, updateBook, type QuoteInput } from '@/lib/repo';
@@ -119,11 +119,18 @@ const Composer = forwardRef<ComposerHandle, Props>(function Composer({ uid, book
     requestAnimationFrame(() => textRef.current?.focus());
   };
 
-  const write = (blocks: Block[], pageNum: number | null, cleanNote: string) => {
+  // A typed page moves the chapter chip when sections have first pages; a later manual pick still wins.
+  const followPage = (pageNum: number | null): string | null => {
+    const id = sectionForPage(sections, pageNum);
+    if (id && id !== validCtx) pickCtx(id);
+    return id ?? validCtx;
+  };
+
+  const write = (blocks: Block[], pageNum: number | null, cleanNote: string, base: string | null = validCtx) => {
     let secs: Section[] = sections;
-    let sectionId = validCtx;
+    let sectionId = base;
     // Pasted headings nest under the chosen section: # = child of it, ## = child of the last #.
-    const stack: (string | null)[] = [validCtx];
+    const stack: (string | null)[] = [base];
     const inputs: QuoteInput[] = [];
     for (const b of blocks) {
       if (b.type === 'heading') {
@@ -167,12 +174,14 @@ const Composer = forwardRef<ComposerHandle, Props>(function Composer({ uid, book
     if (!clean) return;
     const blocks = splitBlocks(clean);
     const { quotes, headings } = countBlocks(blocks);
+    // "p.52" typed at the end of the text is a new page too.
+    const base = token.page ? followPage(token.page) : validCtx;
     if (quotes > 1 || headings > 0) {
       setSplit({ blocks, text: clean });
       if (token.page) setPage(String(token.page));
       return;
     }
-    write([{ type: 'quote', text: clean }], pageNum, cleanNote);
+    write([{ type: 'quote', text: clean }], pageNum, cleanNote, base);
   };
 
   const confirmSplit = (asOne: boolean) => {
@@ -398,6 +407,7 @@ const Composer = forwardRef<ComposerHandle, Props>(function Composer({ uid, book
                 const v = e.target.value.replace(/\D/g, '').slice(0, 5);
                 setPage(v);
                 saveDraft({ page: v });
+                if (v) followPage(Number(v));
               }}
               onKeyDown={(e) => {
                 if (e.nativeEvent.isComposing) return;

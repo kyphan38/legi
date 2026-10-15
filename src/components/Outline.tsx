@@ -7,13 +7,14 @@
 // the top bar and a thin line with the current path; tap → the outline in a sheet.
 // (A right-edge minimap was tried and dropped: it looked like noise.)
 // "edit" turns the outline into a list of inputs: Tab / Shift+Tab indent,
-// ⌥↑ / ⌥↓ move, long press for the same on phones, paste a table of contents.
+// ⌥↑ / ⌥↓ move, long press or ··· for the same on phones, paste a table of
+// contents. Each section can hold its first page so quotes find it by page.
 // ============================================================
 
 import { useRef, useState } from 'react';
 
 import Sheet from '@/components/Sheet';
-import { indent, moveDown, moveUp, outdent, parseToc, removeSection, renameSection, type TreeNode } from '@/lib/outline';
+import { addSection, addSectionAfter, indent, moveDown, moveUp, outdent, parseToc, removeSection, renameSection, setStartPage, type TreeNode } from '@/lib/outline';
 import type { Section } from '@/types/legi';
 
 type Props = {
@@ -52,7 +53,24 @@ function EditOutline({ nodes, sections, counts, onChange, onRemove, onClose }: P
   const [menuId, setMenuId] = useState<string | null>(null);
   const [confirmId, setConfirmId] = useState<string | null>(null);
   const [toc, setToc] = useState<string | null>(null);
+  // A new section typed in place, under or after `id`; never saved with an empty title.
+  const [adding, setAdding] = useState<{ id: string; inside: boolean } | null>(null);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Fingers shake: only a real drag cancels the long press.
+  const pressAt = useRef<{ x: number; y: number } | null>(null);
+  const cancelPress = () => {
+    if (timer.current) clearTimeout(timer.current);
+    pressAt.current = null;
+  };
+
+  const addNew = (title: string) => {
+    const t = title.trim().slice(0, 200);
+    if (!adding || !t) return setAdding(null);
+    const res = adding.inside ? addSection(sections, t, adding.id) : addSectionAfter(sections, t, adding.id);
+    setAdding(null);
+    setMenuId(null);
+    onChange(res.sections);
+  };
 
   const apply = (next: Section[], focusId?: string) => {
     onChange(next);
@@ -76,10 +94,15 @@ function EditOutline({ nodes, sections, counts, onChange, onRemove, onClose }: P
               className="flex items-baseline gap-2 border-b border-line"
               onPointerDown={(e) => {
                 if (e.pointerType === 'mouse') return;
+                pressAt.current = { x: e.clientX, y: e.clientY };
                 timer.current = setTimeout(() => setMenuId(n.section.id), 450);
               }}
-              onPointerUp={() => timer.current && clearTimeout(timer.current)}
-              onPointerMove={() => timer.current && clearTimeout(timer.current)}
+              onPointerUp={cancelPress}
+              onPointerCancel={cancelPress}
+              onPointerMove={(e) => {
+                const at = pressAt.current;
+                if (at && Math.hypot(e.clientX - at.x, e.clientY - at.y) > 10) cancelPress();
+              }}
             >
               <input
                 id={`sec-input-${n.section.id}`}
@@ -110,13 +133,33 @@ function EditOutline({ nodes, sections, counts, onChange, onRemove, onClose }: P
                 }}
                 className="min-w-0 flex-1 bg-transparent py-2 text-[16px] text-ink outline-none"
               />
-              <span className="text-[12px] text-faint tabular-nums">{counts.get(n.section.id) || ''}</span>
+              <input
+                key={n.section.startPage ?? ''}
+                defaultValue={n.section.startPage ?? ''}
+                inputMode="numeric"
+                placeholder="p."
+                aria-label="First page"
+                onBlur={(e) => {
+                  const v = e.target.value.replace(/\D/g, '').slice(0, 5);
+                  const page = v ? Number(v) : null;
+                  if (page !== (n.section.startPage ?? null)) onChange(setStartPage(sections, n.section.id, page));
+                  else e.target.value = v;
+                }}
+                onKeyDown={(e) => e.key === 'Enter' && (e.target as HTMLInputElement).blur()}
+                className="w-10 bg-transparent py-2 text-right text-[14px] text-muted tabular-nums outline-none placeholder:text-faint"
+              />
               <button type="button" aria-label="More" onClick={() => setMenuId(menuId === n.section.id ? null : n.section.id)} className="px-1 text-faint hover:text-ink">
                 ···
               </button>
             </div>
             {menuId === n.section.id && (
               <div className="fade-in flex flex-wrap gap-x-4 gap-y-1 py-2 text-[13px] text-faint">
+                <button type="button" onClick={() => setAdding({ id: n.section.id, inside: true })} className="hover:text-ink">
+                  add inside
+                </button>
+                <button type="button" onClick={() => setAdding({ id: n.section.id, inside: false })} className="hover:text-ink">
+                  add below
+                </button>
                 <button type="button" onClick={() => apply(indent(sections, n.section.id))} className="hover:text-ink">
                   indent
                 </button>
@@ -142,6 +185,23 @@ function EditOutline({ nodes, sections, counts, onChange, onRemove, onClose }: P
                   </button>
                 )}
               </div>
+            )}
+            {adding?.id === n.section.id && (
+              <input
+                autoFocus
+                placeholder="new section"
+                aria-label="New section"
+                lang="vi"
+                spellCheck={false}
+                style={{ paddingLeft: adding.inside ? 16 : 0 }}
+                onBlur={(e) => addNew(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.nativeEvent.isComposing || e.keyCode === 229) return;
+                  if (e.key === 'Enter') (e.target as HTMLInputElement).blur();
+                  else if (e.key === 'Escape') setAdding(null);
+                }}
+                className="block w-full border-b border-line bg-transparent py-2 text-[16px] text-ink outline-none placeholder:text-faint"
+              />
             )}
           </li>
         ))}

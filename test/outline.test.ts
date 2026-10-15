@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 
-import { addSection, addSectionAfter, buildTree, flatten, indent, moveDown, moveUp, outdent, parseToc, pathOf, removeSection, subtreeIds } from '@/lib/outline';
+import { addSection, addSectionAfter, buildTree, flatten, indent, moveDown, moveUp, outdent, parseToc, pathOf, removeSection, sectionForPage, setStartPage, subtreeIds } from '@/lib/outline';
 import type { Section } from '@/types/legi';
 
 const S = (id: string, parentId: string | null, order: number, title = id): Section => ({ id, title, parentId, order });
@@ -75,4 +75,23 @@ test('addSectionAfter: same level, right after, before later siblings', () => {
   assert.deepEqual(titles(addSectionAfter(base, 'x', 'a2', 'x').sections), ['0:a', '1:a1', '1:a2', '1:x', '0:b']);
   assert.deepEqual(titles(addSectionAfter(base, 'x', 'a', 'x').sections), ['0:a', '1:a1', '1:a2', '0:x', '0:b']);
   assert.deepEqual(titles(addSectionAfter(base, 'x', 'missing', 'x').sections), ['0:a', '1:a1', '1:a2', '0:b', '0:x']);
+});
+
+test('parseToc: page number at the end only after leaders, a tab or 2+ spaces', () => {
+  const out = parseToc('1 Thói quen ........ 23\n1.1 Vòng lặp … 30\nChương 2\t41\nPhần  57\nChương 3');
+  const t = flatten(buildTree(out)).map((n) => `${n.depth}:${n.section.title}:${n.section.startPage ?? '-'}`);
+  assert.deepEqual(t, ['0:1 Thói quen:23', '1:1.1 Vòng lặp:30', '0:Chương 2:41', '0:Phần:57', '0:Chương 3:-']);
+});
+
+test('sectionForPage: last start at or before the page, deeper wins a tie', () => {
+  let s = setStartPage(base, 'a', 10);
+  s = setStartPage(s, 'a1', 10);
+  s = setStartPage(s, 'a2', 20);
+  s = setStartPage(s, 'b', 40);
+  assert.equal(sectionForPage(s, 5), null);
+  assert.equal(sectionForPage(s, 10), 'a1');
+  assert.equal(sectionForPage(s, 25), 'a2');
+  assert.equal(sectionForPage(s, 99), 'b');
+  assert.equal(sectionForPage(s, null), null);
+  assert.equal(sectionForPage(base, 50), null);
 });

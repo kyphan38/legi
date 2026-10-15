@@ -6,6 +6,7 @@
 // ============================================================
 
 import { dice, trigrams } from '@/lib/dup';
+import { sectionForPage } from '@/lib/outline';
 import { memoryStore } from '@/lib/store';
 import { fold } from '@/lib/vi';
 import type { Section } from '@/types/legi';
@@ -29,8 +30,14 @@ export const captureStore = memoryStore<CaptureItem[]>([]);
 
 const HEAD_MATCH = 0.6;
 
-/** The section whose title looks like the page's running head, else the fallback. */
-export function guessSection(runningHead: string | null, sections: Section[], fallback: string | null): string | null {
+/**
+ * Where a photographed page goes: by its printed page when sections have first
+ * pages (exact), else the section whose title looks like the running head,
+ * else the fallback.
+ */
+export function guessSection(runningHead: string | null, sections: Section[], fallback: string | null, page: number | null = null): string | null {
+  const byPage = sectionForPage(sections, page);
+  if (byPage) return byPage;
   if (!runningHead) return fallback;
   const head = trigrams(fold(runningHead));
   let best: { id: string; score: number } | null = null;

@@ -97,6 +97,30 @@ export function addSectionAfter(sections: Section[], title: string, afterId: str
   return { sections: [...sections, section], id };
 }
 
+export function setStartPage(sections: Section[], id: string, page: number | null): Section[] {
+  return sections.map((s) => (s.id === id ? { ...s, startPage: page } : s));
+}
+
+/**
+ * The section a page belongs to: the one with the highest startPage at or
+ * before `page`. On a tie the deeper one wins (3.1 starts where chapter 3 does).
+ * null when no section has a start page, so the sticky context stays.
+ */
+export function sectionForPage(sections: Section[], page: number | null): string | null {
+  if (page === null) return null;
+  const depth = new Map(flatten(buildTree(sections)).map((n, i) => [n.section.id, { depth: n.depth, i }]));
+  let best: { id: string; page: number; depth: number; i: number } | null = null;
+  for (const s of sections) {
+    const p = s.startPage;
+    const d = depth.get(s.id);
+    if (p == null || p > page || !d) continue;
+    if (!best || p > best.page || (p === best.page && (d.depth > best.depth || (d.depth === best.depth && d.i > best.i)))) {
+      best = { id: s.id, page: p, ...d };
+    }
+  }
+  return best?.id ?? null;
+}
+
 export function renameSection(sections: Section[], id: string, title: string): Section[] {
   return sections.map((s) => (s.id === id ? { ...s, title: title.trim() } : s));
 }
@@ -152,7 +176,9 @@ export const moveDown = (sections: Section[], id: string) => swap(sections, id, 
 /**
  * Pasted table of contents → sections added at the end. Depth comes from
  * leading tabs / pairs of spaces, or from numbering ("3" = 1, "3.2" = 2,
- * "3.2.1" = 3). The numbering stays in the title.
+ * "3.2.1" = 3). The numbering stays in the title. A page number at the end
+ * becomes startPage, but only after dot leaders, a tab or 2+ spaces, so
+ * "Chương 1" keeps its number.
  */
 export function parseToc(text: string, sections: Section[] = []): Section[] {
   let out = sections;
@@ -161,13 +187,16 @@ export function parseToc(text: string, sections: Section[] = []): Section[] {
     if (!raw.trim()) continue;
     const lead = raw.match(/^[\t ]*/)?.[0] ?? '';
     const indentDepth = (lead.match(/\t/g)?.length ?? 0) + Math.floor(lead.replace(/\t/g, '').length / 2);
-    const title = raw.trim();
+    const tail = raw.trim().match(/^(.*?)(?:\s*(?:\.{2,}|…+|·{2,})\s*|\t+|\s{2,})(\d{1,4})$/);
+    const title = tail ? tail[1].trim() : raw.trim();
+    const startPage = tail ? Number(tail[2]) : null;
+    if (!title) continue;
     const num = title.match(/^(\d+(?:\.\d+)*)\.?\s/);
     let depth = num ? num[1].split('.').length - 1 : indentDepth;
     depth = Math.min(depth, stack.length - 1);
     const parentId = stack[depth] ?? null;
     const added = addSection(out, title, parentId);
-    out = added.sections;
+    out = startPage === null ? added.sections : setStartPage(added.sections, added.id, startPage);
     stack.length = depth + 1;
     stack.push(added.id);
   }

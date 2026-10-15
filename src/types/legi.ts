@@ -13,6 +13,8 @@ export type Section = {
   parentId: string | null;
   /** Order among siblings; a float so an insert in between needs no renumbering. */
   order: number;
+  /** First printed page; quotes with a page at or after it belong here. Missing on old data. */
+  startPage?: number | null;
 };
 
 /** users/{uid}/books/{bookId} */

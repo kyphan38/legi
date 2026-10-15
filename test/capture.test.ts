@@ -18,6 +18,13 @@ test('guessSection matches the running head, ignoring marks and case', () => {
   assert.equal(guessSection(null, sections, 'c4'), 'c4');
 });
 
+test('guessSection prefers the printed page when sections have first pages', () => {
+  const paged = sections.map((s) => ({ ...s, startPage: s.id === 'c3' ? 40 : 60 }));
+  assert.equal(guessSection('CHƯƠNG 3: VÒNG LẶP THÓI QUEN', paged, null, 61), 'c4');
+  assert.equal(guessSection('CHƯƠNG 3: VÒNG LẶP THÓI QUEN', paged, null, 10), 'c3');
+  assert.equal(guessSection(null, paged, null, null), null);
+});
+
 test('initialPicks ticks marked passages that are not saved yet', () => {
   const picks = initialPicks(
     [

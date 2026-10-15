@@ -112,7 +112,7 @@ function CaptureCard({ uid, item }: { uid: string; item: CaptureItem }) {
       const picks = initialPicks(p.passages, isDup);
       return {
         page: p.page ? String(p.page) : '',
-        sectionId: guessSection(p.runningHead, book?.sections ?? [], item.sectionId),
+        sectionId: guessSection(p.runningHead, book?.sections ?? [], item.sectionId, p.page),
         rows: p.passages.map((x, i) => ({ text: x.text, dup: isDup(x.text), picked: picks[i] })),
       };
     });
