@@ -936,7 +936,8 @@ cách dùng khó tìm ra (UX). Code đã hỗ trợ cây nhiều cấp.
 - Hàm thuần `sectionForPage(sections, page)`: lấy mục có `startPage` lớn nhất mà ≤ `page`;
   bằng nhau thì lấy mục sâu hơn (mục con thắng chương). Không mục nào có `startPage` → `null`
   (giữ ngữ cảnh dính như cũ). Có test.
-- Dùng ở: Composer khi gõ `p.` (đổi chip chương, vẫn bấm đổi tay được), `/capture/` khi AI đọc
+- Dùng ở: Composer, số trang trong ô `p.` luôn quyết định mục (cả số đã có sẵn từ trước, tính lại
+  lúc lưu); chọn mục bằng tay thì thắng cho tới khi đổi số trang; `/capture/` khi AI đọc
   được số trang (ưu tiên hơn đoán theo `runningHead`).
 - Không tự chuyển quote cũ. Trong `edit` có nút `place N quotes by page` (chỉ hiện khi N > 0,
   undo được) để chuyển quote cũ có số trang vào đúng mục.

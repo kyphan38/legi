@@ -79,7 +79,12 @@ const Composer = forwardRef<ComposerHandle, Props>(function Composer({ uid, book
   const paged = !book || !isSource(book);
   // No choice yet → the last section of the book (where a reader usually is).
   const fallbackCtx = useMemo(() => flatten(buildTree(sections)).at(-1)?.section.id ?? null, [sections]);
-  const validCtx = ctx === '' ? null : ctx === null ? fallbackCtx : sections.some((s) => s.id === ctx) ? ctx : fallbackCtx;
+  const storedCtx = ctx === '' ? null : ctx === null ? fallbackCtx : sections.some((s) => s.id === ctx) ? ctx : fallbackCtx;
+  // The page decides the section once sections have first pages, also when the
+  // page was typed earlier. A pick by hand wins until the page changes again.
+  const [manual, setManual] = useState(false);
+  const byPage = manual ? null : sectionForPage(sections, Number(page) > 0 ? Math.floor(Number(page)) : null);
+  const validCtx = byPage ?? storedCtx;
   const path = pathOf(sections, validCtx);
 
   const pickCtx = useCallback(
@@ -120,13 +125,6 @@ const Composer = forwardRef<ComposerHandle, Props>(function Composer({ uid, book
     if (usedPage) setPage(String(usedPage));
     clearDraft(draftKey);
     requestAnimationFrame(() => textRef.current?.focus());
-  };
-
-  // A typed page moves the chapter chip when sections have first pages; a later manual pick still wins.
-  const followPage = (pageNum: number | null): string | null => {
-    const id = sectionForPage(sections, pageNum);
-    if (id && id !== validCtx) pickCtx(id);
-    return id ?? validCtx;
   };
 
   const write = (blocks: Block[], pageNum: number | null, cleanNote: string, base: string | null = validCtx) => {
@@ -178,7 +176,8 @@ const Composer = forwardRef<ComposerHandle, Props>(function Composer({ uid, book
     const blocks = splitBlocks(clean);
     const { quotes, headings } = countBlocks(blocks);
     // "p.52" typed at the end of the text is a new page too.
-    const base = token.page ? followPage(token.page) : validCtx;
+    if (token.page) setManual(false);
+    const base = token.page ? (sectionForPage(sections, token.page) ?? storedCtx) : validCtx;
     if (quotes > 1 || headings > 0) {
       setSplit({ blocks, text: clean });
       if (token.page) setPage(String(token.page));
@@ -411,7 +410,7 @@ const Composer = forwardRef<ComposerHandle, Props>(function Composer({ uid, book
                   const v = e.target.value.replace(/\D/g, '').slice(0, 5);
                   setPage(v);
                   saveDraft({ page: v });
-                  if (v) followPage(Number(v));
+                  setManual(false);
                 }}
                 onKeyDown={(e) => {
                   if (e.nativeEvent.isComposing) return;
@@ -448,7 +447,10 @@ const Composer = forwardRef<ComposerHandle, Props>(function Composer({ uid, book
           onClose={() => setPicker(false)}
           sections={sections}
           current={validCtx}
-          onPick={pickCtx}
+          onPick={(id) => {
+            setManual(true);
+            pickCtx(id);
+          }}
           onAdd={(next) => updateBook(uid, book.id, { sections: next })}
         />
       )}
