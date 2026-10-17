@@ -279,7 +279,9 @@ const Composer = forwardRef<ComposerHandle, Props>(function Composer({ uid, book
   const chars = graphemes(text.replace(/\*\*/g, '')).length;
 
   return (
-    <div className="fixed inset-x-0 bottom-0 z-20 border-t border-line bg-bg/95 backdrop-blur-sm" data-composer>
+    // Solid background, no backdrop-filter: on iOS WebKit a blurred fixed parent
+    // draws the textarea caret away from the text once the keyboard is open.
+    <div className="fixed inset-x-0 bottom-0 z-20 border-t border-line bg-bg" data-composer>
       <div className="mx-auto w-full max-w-[36rem] px-5 pt-1.5 pb-[calc(env(safe-area-inset-bottom)+8px)]">
         <div className="max-h-[40dvh] overflow-y-auto">
           <GrowText
