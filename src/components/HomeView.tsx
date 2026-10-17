@@ -6,6 +6,7 @@
 // First open of the day (day starts 04:00): the Daily quote.
 // Otherwise: the last book with the cursor ready, or the shelf.
 // ?new=1 (app shortcut, iOS Shortcut): straight to the composer.
+// ?daily=1 (top bar, ⌘K): today's Daily again, same quote.
 // ============================================================
 
 import Link from 'next/link';
@@ -37,8 +38,9 @@ export default function HomeView() {
   const params = useSearchParams();
   const { books, liveBooks, liveQuotes, loaded } = useLibrary();
   const startNew = params.get('new') === '1';
+  const again = params.get('daily') === '1';
   const [today] = useState(() => dayOf(Date.now()));
-  const [showDaily] = useState(() => !startNew && readJson<string>(SEEN_KEY) !== today);
+  const [showDaily] = useState(() => again || (!startNew && readJson<string>(SEEN_KEY) !== today));
 
   const target = useMemo(() => {
     const last = readJson<string>(LAST_BOOK_KEY);

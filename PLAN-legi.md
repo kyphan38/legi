@@ -716,6 +716,8 @@ soạn thảo → `toggleEmph` bọc/bỏ `**`. Khi đọc, `parseEmph` render `
      Bấm bất kỳ phím chữ nào → `continue` và focus ô nhập.
      `another` (2026-10-17): hiện thêm 1 câu ngẫu nhiên (`pickAnother`, bỏ các câu đã hiện lần này,
      vẫn ưu tiên câu ít hiện nhất), cộng `shownCount`. Không đổi `daily/{day}`.
+  6. Mở lại (2026-10-17): `daily` trên thanh trên và trong ⌘K → `/?daily=1` → luôn hiện lại
+     đúng câu Daily của hôm nay (không chọn câu mới).
   5. Ghi `legi.dailySeen`.
 - **On this day:** dưới Daily, nếu có quote tạo đúng ngày-tháng này ở năm trước thì hiện 1 dòng nhỏ:
   `2025 · Atomic Habits` + đoạn đầu của quote (cắt 80 ký tự). Chạm → mở quote đó. Không có thì không hiện gì.

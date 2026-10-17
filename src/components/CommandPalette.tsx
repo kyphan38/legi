@@ -61,6 +61,7 @@ function Palette({ onClose }: { onClose: () => void }) {
     const bookId = pathname.startsWith('/book') ? params.get('id') : null;
     const commands: Item[] = [
       { key: 'new', label: 'new book', text: 'new book', run: go('/shelf/?add=1') },
+      { key: 'daily', label: 'daily', text: 'daily', run: go('/?daily=1') },
       { key: 'shelf', label: 'shelf', text: 'shelf', run: go('/shelf/') },
       { key: 'inbox', label: 'inbox', text: 'inbox', run: go('/inbox/') },
       { key: 'questions', label: 'questions', text: 'questions', run: go('/questions/') },

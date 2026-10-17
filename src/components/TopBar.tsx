@@ -5,9 +5,9 @@ import { Fragment, useEffect, useSyncExternalStore, type ReactNode } from 'react
 
 import { typingStore } from '@/lib/activity';
 
-export type Place = 'shelf' | 'search' | 'settings';
+export type Place = 'shelf' | 'daily' | 'search' | 'settings';
 
-const HREF: Record<Place, string> = { shelf: '/shelf/', search: '/search/', settings: '/settings/' };
+const HREF: Record<Place, string> = { shelf: '/shelf/', daily: '/?daily=1', search: '/search/', settings: '/settings/' };
 
 /**
  * One small line instead of a tab bar (from hodi). Fades while typing, comes
@@ -16,7 +16,7 @@ const HREF: Record<Place, string> = { shelf: '/shelf/', search: '/search/', sett
  */
 export default function TopBar({ current, left }: { current: Place | null; left?: ReactNode }) {
   const typing = useSyncExternalStore(typingStore.subscribe, typingStore.get, typingStore.getServer);
-  const right: Place[] = ['search', 'settings'];
+  const right: Place[] = ['daily', 'search', 'settings'];
 
   useEffect(() => {
     const wake = () => typingStore.set(false);
