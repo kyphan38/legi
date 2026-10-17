@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 
-import { onThisDay, pickDaily, revisitBoost } from '@/lib/daily';
+import { onThisDay, pickAnother, pickDaily, revisitBoost } from '@/lib/daily';
 import { addDays, dayOf } from '@/lib/day';
 import { dice, findSimilar, indexText, trigrams } from '@/lib/dup';
 import { bookToMarkdown, toJson, toMarkdown } from '@/lib/export';
@@ -121,6 +121,16 @@ test('dup: dice, near copies, containment, marks matter', () => {
   assert.equal(findSimilar('Bạn không vươn lên bằng mục tiêu, bạn rơi xuống bằng hệ thống của mình.', index, 'a'), null);
   const marks = [indexText('m', 'má mà mả mã mạ ma má mà mả mã mạ')];
   assert.equal(findSimilar('ma ma ma ma ma ma ma ma ma ma ma', marks), null);
+});
+
+test('daily another: skips seen quotes, least shown first, null when all seen', () => {
+  const books = new Map([['b1', book()]]);
+  const qs = ['a', 'b', 'c'].map((id) => quote(id));
+  const day = '2026-10-13';
+  for (const r of [0, 0.5, 0.99]) assert.notEqual(pickAnother(qs, books, day, new Set(['a']), r)?.id, 'a');
+  const shown = qs.map((q) => (q.id === 'b' ? { ...q, shownCount: 1 } : q));
+  assert.equal(pickAnother(shown, books, day, new Set(['a']), 0.99)?.id, 'c');
+  assert.equal(pickAnother(qs, books, day, new Set(['a', 'b', 'c']), 0.5), null);
 });
 
 test('daily: same day same pick, least shown first, favorites weigh more', () => {

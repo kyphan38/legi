@@ -55,14 +55,27 @@ export function candidates(quotes: QuoteRow[], books: Map<string, BookRow>): Quo
 }
 
 export function pickDaily(quotes: QuoteRow[], books: Map<string, BookRow>, day: string): QuoteRow | null {
-  const pool = candidates(quotes, books);
+  return weightedPick(candidates(quotes, books), books, day, mulberry32(hashString(day))());
+}
+
+/** One more quote after the Daily ("another"): random, skips the ones already shown this visit. */
+export function pickAnother(quotes: QuoteRow[], books: Map<string, BookRow>, day: string, seen: Set<string>, rand = Math.random()): QuoteRow | null {
+  return weightedPick(
+    candidates(quotes, books).filter((q) => !seen.has(q.id)),
+    books,
+    day,
+    rand,
+  );
+}
+
+function weightedPick(pool: QuoteRow[], books: Map<string, BookRow>, day: string, rand: number): QuoteRow | null {
   if (pool.length === 0) return null;
   const least = Math.min(...pool.map((q) => q.shownCount));
   // Stable order first: the result must not depend on how the snapshot listed docs.
   const group = pool.filter((q) => q.shownCount === least).sort((a, b) => (a.id < b.id ? -1 : 1));
   const weights = group.map((q) => (q.favorite ? 3 : 1) * revisitBoost(q.bookId ? books.get(q.bookId) : undefined, q, day));
   const total = weights.reduce((a, b) => a + b, 0);
-  let r = mulberry32(hashString(day))() * total;
+  let r = rand * total;
   for (let i = 0; i < group.length; i++) {
     r -= weights[i];
     if (r < 0) return group[i];

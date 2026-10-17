@@ -226,6 +226,11 @@ export function saveDaily(uid: string, day: string, quote: QuoteRow, now = Date.
   b.commit().catch(warn('saveDaily'));
 }
 
+/** Counts one more showing (the "another" quote after the Daily). */
+export function markShown(uid: string, quote: QuoteRow, now = Date.now()): void {
+  updateDoc(quoteRef(uid, quote.id), { shownCount: quote.shownCount + 1, lastShownAt: now, updatedAt: now }).catch(warn('markShown'));
+}
+
 export function rowData<T extends { id: string }>(row: T): Omit<T, 'id'> {
   return strip(row);
 }

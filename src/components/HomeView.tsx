@@ -17,11 +17,11 @@ import { useUid } from '@/components/AuthGate';
 import { LAST_BOOK_KEY } from '@/components/BookView';
 import Typewriter from '@/components/Typewriter';
 import { useLibrary } from '@/contexts/LibraryContext';
-import { onThisDay, pickDaily } from '@/lib/daily';
+import { mulberry32, onThisDay, pickAnother, pickDaily } from '@/lib/daily';
 import { dayOf } from '@/lib/day';
 import { getDb } from '@/lib/firebase-client';
 import { pathOf } from '@/lib/outline';
-import { saveDaily } from '@/lib/repo';
+import { markShown, saveDaily } from '@/lib/repo';
 import { readJson, writeJson } from '@/lib/store';
 import type { DailyPick, QuoteRow } from '@/types/legi';
 
@@ -61,8 +61,12 @@ function Daily({ day, continueTo }: { day: string; continueTo: string }) {
   const uid = useUid();
   const router = useRouter();
   const { books, quotes, liveQuotes } = useLibrary();
-  const [quoteId, setQuoteId] = useState<string | null>(null);
+  // The day's pick first, then each "another". The last one is on screen.
+  const [shown, setShown] = useState<string[]>([]);
   const decided = useRef(false);
+  // After "another", a late snapshot of the day's pick must not switch back.
+  const browsing = useRef(false);
+  const [seed] = useState(() => Math.floor(Math.random() * 2 ** 32));
 
   // Use the day's pick if any device made one; otherwise make it here.
   useEffect(() => {
@@ -70,7 +74,8 @@ function Daily({ day, continueTo }: { day: string; continueTo: string }) {
     let timer: ReturnType<typeof setTimeout> | null = null;
     const decide = (existing: DailyPick | null) => {
       if (existing) {
-        setQuoteId(existing.quoteId);
+        if (browsing.current) return;
+        setShown([existing.quoteId]);
         decided.current = true;
         return;
       }
@@ -78,7 +83,7 @@ function Daily({ day, continueTo }: { day: string; continueTo: string }) {
       decided.current = true;
       const pick = pickDaily(liveQuotes, books, day);
       if (!pick) return;
-      setQuoteId(pick.id);
+      setShown([pick.id]);
       saveDaily(uid, day, pick);
     };
     const off = onSnapshot(
@@ -104,8 +109,20 @@ function Daily({ day, continueTo }: { day: string; continueTo: string }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [uid, day]);
 
+  const quoteId = shown.at(-1);
   const quote = quoteId ? quotes.get(quoteId) : undefined;
   const past = useMemo(() => onThisDay(liveQuotes, day), [liveQuotes, day]);
+  const next = useMemo(
+    () => (shown.length > 0 ? pickAnother(liveQuotes, books, day, new Set(shown), mulberry32(seed + shown.length)()) : null),
+    [shown, liveQuotes, books, day, seed],
+  );
+
+  const another = () => {
+    if (!next) return;
+    browsing.current = true;
+    setShown((ids) => [...ids, next.id]);
+    markShown(uid, next);
+  };
 
   // Any letter key: continue to the book and type.
   useEffect(() => {
@@ -129,7 +146,7 @@ function Daily({ day, continueTo }: { day: string; continueTo: string }) {
     <main className="paper flex min-h-dvh flex-col justify-center pb-[10dvh]">
       <div className="fade-in">
         <p className="text-[calc(var(--quote-size)+2px)] leading-[1.75] whitespace-pre-wrap text-ink">
-          <Typewriter text={quote.text} />
+          <Typewriter key={quote.id} text={quote.text} />
         </p>
         <p className="mt-6 text-[13px] text-faint">
           {where}
@@ -139,11 +156,16 @@ function Daily({ day, continueTo }: { day: string; continueTo: string }) {
           <Link href={quoteHref(quote)} className="text-ink">
             open in book
           </Link>
+          {next && (
+            <button type="button" onClick={another} className="text-faint hover:text-ink">
+              another
+            </button>
+          )}
           <Link href={continueTo} replace className="text-faint hover:text-ink">
             continue
           </Link>
         </div>
-        {past && past.id !== quote.id && (
+        {shown.length === 1 && past && past.id !== quote.id && (
           <Link href={quoteHref(past)} className="mt-14 block text-[13px] leading-relaxed text-faint hover:text-muted">
             <span className="text-muted">
               {dayOf(past.createdAt).slice(0, 4)} · {pastBook?.title ?? 'Inbox'}
