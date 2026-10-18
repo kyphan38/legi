@@ -75,11 +75,12 @@ function EditOutline({
     pressAt.current = null;
   };
 
-  const addNew = (title: string) => {
+  // Enter keeps going with a fresh input right below the new one; blur stops.
+  const addNew = (title: string, more: boolean) => {
     const t = title.trim().slice(0, 200);
     if (!adding || !t) return setAdding(null);
     const res = adding.inside ? addSection(sections, t, adding.id) : addSectionAfter(sections, t, adding.id);
-    setAdding(null);
+    setAdding(more ? { id: res.id, inside: false } : null);
     setMenuId(null);
     onChange(res.sections);
   };
@@ -206,11 +207,14 @@ function EditOutline({
                 lang="vi"
                 spellCheck={false}
                 style={{ paddingLeft: adding.inside ? 16 : 0 }}
-                onBlur={(e) => addNew(e.target.value)}
+                onBlur={(e) => e.target.dataset.done || addNew(e.target.value, false)}
                 onKeyDown={(e) => {
                   if (e.nativeEvent.isComposing || e.keyCode === 229) return;
-                  if (e.key === 'Enter') (e.target as HTMLInputElement).blur();
-                  else if (e.key === 'Escape') setAdding(null);
+                  if (e.key === 'Enter') {
+                    // This input unmounts; its blur must not add the title twice.
+                    e.currentTarget.dataset.done = '1';
+                    addNew(e.currentTarget.value, true);
+                  } else if (e.key === 'Escape') setAdding(null);
                 }}
                 className="block w-full border-b border-line bg-transparent py-2 text-[16px] text-ink outline-none placeholder:text-faint"
               />

@@ -1,9 +1,9 @@
 'use client';
 
-import { useState } from 'react';
+import { type KeyboardEvent, useState } from 'react';
 
 import Sheet from '@/components/Sheet';
-import { addSection, addSectionAfter, buildTree, flatten } from '@/lib/outline';
+import { addSection, addSectionAfter, buildTree, flatten, setStartPage } from '@/lib/outline';
 import type { Section } from '@/types/legi';
 
 type Props = {
@@ -25,9 +25,16 @@ type Place = 'same' | 'inside' | 'top';
  * reading goes 3.1 → 3.2 → 3.3, so that case needs no tap.
  * While a new title is typed, tapping a section moves the anchor there
  * instead of picking it, so "inside abc" works without picking abc first.
+ * The sheet stays open after an add, anchored on the new section, so a run
+ * of sections (with first pages) goes in one go.
  */
-export default function SectionPicker({ open, onClose, sections, current, onPick, onAdd, label = 'Chapter' }: Props) {
+export default function SectionPicker({ open, onClose, sections: saved, current, onPick, onAdd, label = 'Chapter' }: Props) {
   const [title, setTitle] = useState('');
+  const [page, setPage] = useState('');
+  // What we last wrote, until the sheet closes: the next add must not start
+  // from a list that does not have the previous one yet.
+  const [mine, setMine] = useState<Section[] | null>(null);
+  const sections = mine ?? saved;
   // null = the default for the current section; reset each time the sheet closes.
   const [chosen, setChosen] = useState<Place | null>(null);
   const [anchorId, setAnchorId] = useState<string | null>(null);
@@ -39,6 +46,8 @@ export default function SectionPicker({ open, onClose, sections, current, onPick
   const close = () => {
     setChosen(null);
     setAnchorId(null);
+    setMine(null);
+    setPage('');
     onClose();
   };
 
@@ -51,10 +60,24 @@ export default function SectionPicker({ open, onClose, sections, current, onPick
         : place === 'inside' && currentSection
           ? addSection(sections, t, currentSection.id)
           : addSection(sections, t, null);
-    onAdd(res.sections, res.id);
-    setTitle('');
+    const p = Number(page.replace(/\D/g, '').slice(0, 5));
+    const next = p > 0 ? setStartPage(res.sections, res.id, p) : res.sections;
+    onAdd(next, res.id);
     onPick(res.id);
-    close();
+    setMine(next);
+    setTitle('');
+    setPage('');
+    setAnchorId(res.id);
+    setChosen(null);
+  };
+
+  const onEnter = (e: KeyboardEvent<HTMLInputElement>) => {
+    if (e.nativeEvent.isComposing || e.keyCode === 229) return;
+    if (e.key !== 'Enter') return;
+    e.preventDefault();
+    add();
+    // From the page box, go back to the title for the next one.
+    document.getElementById('picker-new-section')?.focus();
   };
 
   const places: { p: Place; label: string }[] = currentSection
@@ -107,6 +130,7 @@ export default function SectionPicker({ open, onClose, sections, current, onPick
               }`}
             >
               {n.section.title}
+              {n.section.startPage != null && <span className="ml-2 text-[13px] text-faint tabular-nums">p.{n.section.startPage}</span>}
             </button>
           </li>
         ))}
@@ -114,22 +138,29 @@ export default function SectionPicker({ open, onClose, sections, current, onPick
 
       {onAdd && (
         <div className="mt-4 border-t border-line pt-4">
-          <input
-            value={title}
-            onChange={(e) => setTitle(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.nativeEvent.isComposing || e.keyCode === 229) return;
-              if (e.key === 'Enter') {
-                e.preventDefault();
-                add();
-              }
-            }}
-            placeholder="new section"
-            aria-label="New section"
-            lang="vi"
-            spellCheck={false}
-            className="w-full bg-transparent py-2 text-[16px] outline-none placeholder:text-faint"
-          />
+          <div className="flex items-baseline gap-2">
+            <input
+              id="picker-new-section"
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              onKeyDown={onEnter}
+              placeholder="new section"
+              aria-label="New section"
+              lang="vi"
+              spellCheck={false}
+              className="min-w-0 flex-1 bg-transparent py-2 text-[16px] outline-none placeholder:text-faint"
+            />
+            <input
+              value={page}
+              onChange={(e) => setPage(e.target.value.replace(/\D/g, '').slice(0, 5))}
+              onKeyDown={onEnter}
+              inputMode="numeric"
+              enterKeyHint="done"
+              placeholder="p."
+              aria-label="First page"
+              className="w-12 bg-transparent py-2 text-right text-[16px] text-muted tabular-nums outline-none placeholder:text-faint"
+            />
+          </div>
           {places.length > 0 && (
             <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-[13px]" role="radiogroup" aria-label="Where">
               {places.map(({ p, label }) => (
