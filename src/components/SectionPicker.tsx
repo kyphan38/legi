@@ -121,7 +121,7 @@ export default function SectionPicker({ open, onClose, sections: saved, current,
               style={{ paddingLeft: n.depth * 16 }}
               className={`w-full py-2.5 text-left ${
                 placing && n.section.id === currentSection?.id
-                  ? 'text-ink underline decoration-line underline-offset-4'
+                  ? 'rounded-md bg-surface-2 text-ink'
                   : n.section.id === current
                     ? 'font-medium text-ink'
                     : n.depth === 0
