@@ -86,7 +86,7 @@ export default function VoiceButton({ onText }: { onText: (text: string) => void
         aria-pressed={recording}
         className={`shrink-0 ${recording ? 'text-ink' : 'hover:text-muted'}`}
       >
-        {recording || busy ? <span className="block size-2 animate-pulse rounded-full bg-current" aria-hidden /> : <MicIcon size={15} />}
+        {recording || busy ? <span className="breathe block size-2 rounded-full bg-current" aria-hidden /> : <MicIcon size={15} />}
       </button>
       {recording && (
         <span className="fade-in flex shrink-0 items-baseline gap-2 tabular-nums">

@@ -345,3 +345,4 @@ dòng).
 ## Tiến độ
 
 (AI làm ghi một dòng mỗi phase: ngày, commit, ghi chú.)
+- P1 (2026-10-21): CSS `fade-out`, `sheet-down`, `row-out`, `breathe` and one global reduced-motion block (keeps `scroll-behavior`), `src/lib/motion.ts` + test, `usePresence`, `VoiceButton` dot `breathe`, `UndoBar` exit. `--ease-soft`, `rise`, `fade-in`, `sheet-up`, `flash`, `settle` unchanged. Checked against the Auth and Firestore emulators with the seed data: deleting a quote shows the bar with `fade-in`; after 5 seconds it gets `fade-out`, a disabled button and `pointer-events: none`, then goes; after `undo` it fades out the same way while the quote comes back. The recording dot was checked by code only (no microphone in the test).

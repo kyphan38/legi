@@ -76,3 +76,22 @@ Checks: `npm run lint`, `npm run typecheck`, `npm test`, `npm run build`.
 `⌘K` or `/` search and commands · `n` new quote · `j/k` next/prev · `e` edit ·
 `f` star · `x` select · `m` move · `⌫` delete · `⌘Z` undo · `[` `]` fold/unfold all ·
 `?` all keys.
+
+## Motion
+
+Small and quiet (`PLAN-motion.md`, `ws/app/DESIGN.md` "Motion"). Classes are in
+`src/app/globals.css`: `rise`, `fade-in`, `sheet-up`, `flash`, `settle` (older)
+and `fade-out`, `sheet-down`, `row-out`, `breathe` (new), on `--ease-soft`. The
+last block turns every animation off under `prefers-reduced-motion`; the
+typewriter and the first-rows `rise` on opening a book already respected it.
+
+- `src/lib/motion.ts` (`reducedMotion`, `leavingItems`, tested) and
+  `src/hooks/usePresence.ts` (keeps a thing mounted while it leaves) are
+  copied from logi. Old `matchMedia` checks in `Typewriter`, `BookView` and
+  `useQuoteBoard` were left as they are.
+- The recording dot in `VoiceButton` fades slowly (`breathe`) instead of
+  pulsing.
+- `UndoBar` fades out after its 5 seconds and after a press on `undo` (the last
+  entry stays on screen for the fade, and a leaving bar takes no taps). A new
+  entry shows at once.
+
