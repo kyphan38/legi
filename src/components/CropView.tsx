@@ -4,6 +4,7 @@ import { useEffect, useRef, useState, type PointerEvent } from 'react';
 import { createPortal } from 'react-dom';
 
 import { dragBox, FULL, type Box, type Handle } from '@/lib/crop';
+import { reducedMotion } from '@/lib/motion';
 
 type Props = {
   file: Blob;
@@ -30,6 +31,24 @@ export default function CropView({ file, step, onUse, onCancel }: Props) {
   const frame = useRef<HTMLDivElement>(null);
   const img = useRef<HTMLImageElement>(null);
   const drag = useRef<{ handle: Handle; x: number; y: number; box: Box } | null>(null);
+  // Cancel fades the view out first. "use" closes it at once: the next photo or the read follows.
+  const [leaving, setLeaving] = useState(false);
+  const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(
+    () => () => {
+      if (timer.current) clearTimeout(timer.current);
+    },
+    [],
+  );
+  const cancel = () => {
+    if (leaving) return;
+    if (reducedMotion()) {
+      onCancel();
+      return;
+    }
+    setLeaving(true);
+    timer.current = setTimeout(onCancel, 200);
+  };
 
   useEffect(() => {
     const u = URL.createObjectURL(file);
@@ -39,7 +58,8 @@ export default function CropView({ file, step, onUse, onCancel }: Props) {
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onCancel();
+      if (leaving) return;
+      if (e.key === 'Escape') cancel();
       else if (e.key === 'Enter') onUse(box);
     };
     window.addEventListener('keydown', onKey);
@@ -49,7 +69,8 @@ export default function CropView({ file, step, onUse, onCancel }: Props) {
       window.removeEventListener('keydown', onKey);
       document.body.style.overflow = prev;
     };
-  }, [box, onUse, onCancel]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- `cancel` only reads `leaving` and `onCancel`
+  }, [box, onUse, onCancel, leaving]);
 
   const start = (handle: Handle, e: PointerEvent<HTMLElement>) => {
     e.preventDefault();
@@ -68,10 +89,15 @@ export default function CropView({ file, step, onUse, onCancel }: Props) {
   };
 
   return createPortal(
-    <div className="fade-in fixed inset-0 z-50 flex flex-col bg-black text-[15px] text-white/80" role="dialog" aria-modal="true" aria-label="Crop">
+    <div
+      className={`${leaving ? 'fade-out pointer-events-none' : 'fade-in'} fixed inset-0 z-50 flex flex-col bg-black text-[15px] text-white/80`}
+      role="dialog"
+      aria-modal="true"
+      aria-label="Crop"
+    >
       {/* Above the shade, which spills over the whole screen. */}
       <div className="relative z-10 flex items-center justify-between bg-black px-5 pt-[calc(env(safe-area-inset-top)+12px)] pb-3">
-        <button type="button" onClick={onCancel} className="py-2 hover:text-white">
+        <button type="button" onClick={cancel} className="py-2 hover:text-white">
           cancel
         </button>
         <span className="text-white/50 tabular-nums">{step}</span>

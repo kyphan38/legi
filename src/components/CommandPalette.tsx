@@ -4,11 +4,12 @@
 // Empty → commands. Typing → matching commands, books, then quotes.
 
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
-import { useDeferredValue, useEffect, useMemo, useState, useSyncExternalStore } from 'react';
+import { useDeferredValue, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
 
 import { hrefOf } from '@/components/SearchResults';
 import QuoteText from '@/components/QuoteText';
 import { useLibrary } from '@/contexts/LibraryContext';
+import { reducedMotion } from '@/lib/motion';
 import { applyDisplayPrefs, sizeStore, themeStore, type TextSize, type Theme } from '@/lib/prefs';
 import { searchAll } from '@/lib/search';
 import { exportAll } from '@/lib/share-file';
@@ -47,6 +48,24 @@ function Palette({ onClose }: { onClose: () => void }) {
   const [query, setQuery] = useState('');
   const [index, setIndex] = useState(0);
   const deferred = useDeferredValue(query);
+  // Esc and a tap outside slide it out first. Running a command closes it at once.
+  const [leaving, setLeaving] = useState(false);
+  const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(
+    () => () => {
+      if (timer.current) clearTimeout(timer.current);
+    },
+    [],
+  );
+  const leave = () => {
+    if (leaving) return;
+    if (reducedMotion()) {
+      onClose();
+      return;
+    }
+    setLeaving(true);
+    timer.current = setTimeout(onClose, 200);
+  };
 
   const items = useMemo<Item[]>(() => {
     const go = (href: string) => () => router.push(href);
@@ -105,9 +124,14 @@ function Palette({ onClose }: { onClose: () => void }) {
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-start justify-center px-4 pt-[12dvh]" role="dialog" aria-modal="true" aria-label="Command palette">
-      <button type="button" aria-label="Close" onClick={onClose} className="fade-in absolute inset-0 bg-black/25" />
-      <div className="sheet-up relative w-full max-w-[36rem] overflow-hidden rounded-2xl border border-line bg-surface">
+    <div
+      className={`fixed inset-0 z-50 flex items-start justify-center px-4 pt-[12dvh] ${leaving ? 'pointer-events-none' : ''}`}
+      role="dialog"
+      aria-modal="true"
+      aria-label="Command palette"
+    >
+      <button type="button" aria-label="Close" onClick={leave} className={`${leaving ? 'fade-out' : 'fade-in'} absolute inset-0 bg-black/25`} />
+      <div inert={leaving} className={`${leaving ? 'sheet-down' : 'sheet-up'} relative w-full max-w-[36rem] overflow-hidden rounded-2xl border border-line bg-surface`}>
         <input
           autoFocus
           value={query}
@@ -128,7 +152,7 @@ function Palette({ onClose }: { onClose: () => void }) {
               run(items[active]);
             } else if (e.key === 'Escape') {
               e.preventDefault();
-              onClose();
+              leave();
             }
           }}
           placeholder="Search or run a command"

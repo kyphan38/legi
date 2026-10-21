@@ -94,4 +94,14 @@ typewriter and the first-rows `rise` on opening a book already respected it.
 - `UndoBar` fades out after its 5 seconds and after a press on `undo` (the last
   entry stays on screen for the fade, and a leaving bar takes no taps). A new
   entry shows at once.
+- `Sheet` (one component for every sheet) now slides out before it unmounts:
+  Esc, a tap outside and, on a phone, a swipe down from the handle at the top
+  all close it. Because `open` belongs to the parent, every close slides out,
+  buttons inside included (200ms, the sheet is `inert` meanwhile). The content of
+  the last open frame stays on screen while it leaves (`frozen`), so a menu that
+  clears its data on close (`QuoteMenu`) does not show an empty panel. Page
+  scroll is locked by a counter, so a sheet that opens while another slides out
+  keeps it locked.
+- `CommandPalette` slides out on Esc or a tap outside; running a command closes
+  it at once. `CropView` fades out on cancel; `use` closes it at once.
 
