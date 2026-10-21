@@ -20,10 +20,14 @@ type Props = {
   onMenu: (q: QuoteRow) => void;
   onToggle: (q: QuoteRow) => void;
   riseIndex?: number;
+  /** Added while the list is on screen: rises at once. */
+  rose?: boolean;
+  /** Removed from the list: slides out, takes no input. */
+  going?: boolean;
 };
 
 /** One quote in read mode. Tap = edit (or select while selecting), long press / right click = menu. */
-function QuoteItem({ quote, selected, focused, selecting, footer, onOpen, onMenu, onToggle, riseIndex }: Props) {
+function QuoteItem({ quote, selected, focused, selecting, footer, onOpen, onMenu, onToggle, riseIndex, rose, going }: Props) {
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const pressed = useRef(false);
   const start = useRef<{ x: number; y: number } | null>(null);
@@ -34,15 +38,17 @@ function QuoteItem({ quote, selected, focused, selecting, footer, onOpen, onMenu
   };
 
   const kindClass = quote.kind === 'quote' ? 'quote-text' : 'thought-text';
-  const rise = riseIndex !== undefined && riseIndex < 12;
+  const rise = !going && (rose || (riseIndex !== undefined && riseIndex < 12));
 
   return (
     <article
       id={`q-${quote.id}`}
       data-quote={quote.id}
       tabIndex={-1}
-      className={`group no-callout relative -mx-3 cursor-text rounded-md px-3 py-1.5 outline-none transition-colors ${selected ? 'bg-wash' : ''} ${focused ? 'shadow-[inset_2px_0_0_var(--faint)]' : ''} ${rise ? 'rise' : ''}`}
-      style={rise ? { animationDelay: `${riseIndex * 25}ms` } : undefined}
+      className={`group no-callout relative -mx-3 cursor-text rounded-md px-3 py-1.5 outline-none transition-colors ${selected ? 'bg-wash' : ''} ${focused ? 'shadow-[inset_2px_0_0_var(--faint)]' : ''} ${rise ? 'rise' : ''} ${going ? 'row-out' : ''}`}
+      style={rise && !rose && riseIndex !== undefined ? { animationDelay: `${riseIndex * 25}ms` } : undefined}
+      aria-hidden={going || undefined}
+      inert={going}
       onPointerDown={(e) => {
         pressed.current = false;
         if (e.pointerType === 'mouse') return;

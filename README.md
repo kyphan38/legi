@@ -104,4 +104,13 @@ typewriter and the first-rows `rise` on opening a book already respected it.
   keeps it locked.
 - `CommandPalette` slides out on Esc or a tap outside; running a command closes
   it at once. `CropView` fades out on cancel; `use` closes it at once.
+- Quote rows move when the list changes while you look at it: a quote that
+  appears (saved, or undo of a delete) uses `rise` at once; a quote that
+  leaves the book (delete, move to another book, merge) stays 180ms with
+  `row-out`, is `inert` and `aria-hidden`, and the rows below slide with
+  `useFlip` (260ms, positions in page coordinates). `useRowMotion` decides this
+  while rendering. Opening a book, folding a section, the first load and a
+  change of more than 3 rows play nothing extra. `rowChanges` is in
+  `src/lib/motion.ts` (tested). A row being edited never slides out, and
+  j/k, selection and the menu only see live rows.
 

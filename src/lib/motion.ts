@@ -20,3 +20,15 @@ export function sheetShouldClose(dy: number, height: number, velocityPxPerMs: nu
 export function dragOffset(dy: number): number {
   return dy >= 0 ? dy : dy * 0.2;
 }
+
+/**
+ * Which rows a live update added or removed. More than `maxDelta` changes means the list was
+ * swapped (another filter, a big import), not edited, so it returns null and nothing animates.
+ */
+export function rowChanges(prevIds: string[], nextIds: string[], maxDelta = 3): { added: string[]; removed: string[] } | null {
+  const before = new Set(prevIds);
+  const after = new Set(nextIds);
+  const added = nextIds.filter((id) => !before.has(id));
+  const removed = prevIds.filter((id) => !after.has(id));
+  return added.length + removed.length > maxDelta ? null : { added, removed };
+}

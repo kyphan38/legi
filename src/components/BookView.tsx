@@ -18,6 +18,8 @@ import Composer, { type ComposerHandle } from '@/components/Composer';
 import { OutlineBar, OutlineRail } from '@/components/Outline';
 import TopBar from '@/components/TopBar';
 import { useLibrary } from '@/contexts/LibraryContext';
+import { useFlip } from '@/hooks/useFlip';
+import { useRowMotion } from '@/hooks/useRowMotion';
 import { inField, scrollToQuote, useQuoteBoard } from '@/hooks/useQuoteBoard';
 import { buildTree, flatten, misplacedByPage, pathOf, subtreeIds, type TreeNode } from '@/lib/outline';
 import { moveQuotes, placeQuotes, updateBook } from '@/lib/repo';
@@ -139,6 +141,26 @@ function BookPage({ book, focusQuote, startNew }: { book: BookRow; focusQuote: s
   }, [bySection, nodes, hidden, folded]);
 
   const board = useQuoteBoard(uid, ordered, { bookId: book.id });
+
+  // Rows added or removed while the book is open move in and out; opening, folding and big swaps do not.
+  const scope = [...folded].sort().join(',');
+  const { shown, goingIds, rose } = useRowMotion(quotes, scope, loaded, board.editingId);
+  const shownBySection = useMemo(() => {
+    const m = new Map<string, QuoteRow[]>();
+    for (const q of shown) {
+      const key = q.sectionId && known.has(q.sectionId) ? q.sectionId : '';
+      const list = m.get(key);
+      if (list) list.push(q);
+      else m.set(key, [q]);
+    }
+    return m;
+  }, [shown, known]);
+  // Leaving rows stay in the order, so rows below slide up when they unmount, not before.
+  useFlip(
+    shown.map((q) => q.id),
+    scope,
+  );
+  const item = (q: QuoteRow, index: number) => board.renderItem(q, index, { rose: rose.has(q.id), going: goingIds.has(q.id) });
 
   const setFold = useCallback(
     (next: Set<string>) => {
@@ -276,7 +298,7 @@ function BookPage({ book, focusQuote, startNew }: { book: BookRow; focusQuote: s
   let rise = 0;
   const renderNode = (n: TreeNode) => {
     const isFolded = folded.has(n.section.id);
-    const list = isFolded ? [] : (bySection.get(n.section.id) ?? []);
+    const list = isFolded ? [] : (shownBySection.get(n.section.id) ?? []);
     const head =
       n.depth === 0
         ? 'mt-14 text-[15px] font-medium text-ink'
@@ -291,12 +313,12 @@ function BookPage({ book, focusQuote, startNew }: { book: BookRow; focusQuote: s
             {isFolded && <span className="shrink-0 text-[12px] font-normal text-faint tabular-nums">{counts.get(n.section.id) || ''}</span>}
           </button>
         </h2>
-        {list.length > 0 && <div className="mt-4 space-y-5">{list.map((q) => board.renderItem(q, rise++))}</div>}
+        {list.length > 0 && <div className="mt-4 space-y-5">{list.map((q) => item(q, rise++))}</div>}
       </section>
     );
   };
 
-  const top = bySection.get('') ?? [];
+  const top = shownBySection.get('') ?? [];
 
   return (
     <>
@@ -305,7 +327,7 @@ function BookPage({ book, focusQuote, startNew }: { book: BookRow; focusQuote: s
         <TopBar current={null} left={<BookLeft onContents={book.sections.length ? () => setContents(true) : null} />} />
         <OutlineBar {...outline} path={activePath} open={contents} onOpenChange={setContents} />
         <BookHeader uid={uid} book={book} onDeleted={() => router.replace('/shelf/')} />
-        {top.length > 0 && <div className="mt-10 space-y-5">{top.map((q) => board.renderItem(q, rise++))}</div>}
+        {top.length > 0 && <div className="mt-10 space-y-5">{top.map((q) => item(q, rise++))}</div>}
         {visibleNodes.map(renderNode)}
       </main>
       <Composer

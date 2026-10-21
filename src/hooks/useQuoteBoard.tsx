@@ -153,8 +153,8 @@ export function useQuoteBoard(
     return () => window.removeEventListener('keydown', onKey);
   }, [ordered, focusedId, editingId, selectedRows, selecting, toggle, clearSelection, uid]);
 
-  const renderItem = (q: QuoteRow, index?: number) =>
-    editingId === q.id ? (
+  const renderItem = (q: QuoteRow, index?: number, motion?: { rose?: boolean; going?: boolean }) =>
+    editingId === q.id && !motion?.going ? (
       <div key={q.id} id={`q-${q.id}`}>
         <QuoteEditor uid={uid} quote={q} kinds={opts.kinds} onDone={() => setEditingId(null)} extra={opts.editorExtra?.(q)} />
       </div>
@@ -162,13 +162,15 @@ export function useQuoteBoard(
       <QuoteItem
         key={q.id}
         quote={q}
-        selected={selected.has(q.id)}
+        selected={!motion?.going && selected.has(q.id)}
         focused={focusedId === q.id}
         selecting={selecting}
         onOpen={open}
         onMenu={setMenu}
         onToggle={toggle}
         riseIndex={index}
+        rose={motion?.rose}
+        going={motion?.going}
         footer={opts.footer?.(q)}
       />
     );

@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 
-import { dragOffset, leavingItems, reducedMotion, sheetShouldClose } from '@/lib/motion';
+import { dragOffset, leavingItems, reducedMotion, rowChanges, sheetShouldClose } from '@/lib/motion';
 
 const a = { id: 'a' };
 const b = { id: 'b' };
@@ -45,4 +45,20 @@ test('dragOffset: dragging up is damped', () => {
 
 test('dragOffset: dragging down follows the finger', () => {
   assert.equal(dragOffset(30), 30);
+});
+
+test('rowChanges: one added row', () => {
+  assert.deepEqual(rowChanges(['a', 'b'], ['c', 'a', 'b']), { added: ['c'], removed: [] });
+});
+
+test('rowChanges: one removed row', () => {
+  assert.deepEqual(rowChanges(['a', 'b', 'c'], ['a', 'c']), { added: [], removed: ['b'] });
+});
+
+test('rowChanges: a reorder changes nothing', () => {
+  assert.deepEqual(rowChanges(['a', 'b'], ['b', 'a']), { added: [], removed: [] });
+});
+
+test('rowChanges: a swapped list is not an edit', () => {
+  assert.equal(rowChanges(['a', 'b', 'c'], ['x', 'y', 'z']), null);
 });
