@@ -6,7 +6,7 @@
 // Edit in place, long-press menu, select several, move, merge, favorite,
 // delete, and the desktop keys:
 //   j/k next/prev · e or Enter edit · x select · m move · f star
-//   Backspace/Delete delete · Esc leave
+//   ⌥↑/⌥↓ move up/down · Backspace/Delete delete · Esc leave
 // ============================================================
 
 import { useRouter } from 'next/navigation';
@@ -16,6 +16,7 @@ import MoveSheet from '@/components/MoveSheet';
 import QuoteEditor from '@/components/QuoteEditor';
 import QuoteItem from '@/components/QuoteItem';
 import QuoteMenu, { type MenuAction } from '@/components/QuoteMenu';
+import { orderForStep } from '@/lib/order';
 import { mergeQuotes, moveQuotes, trashQuotes, updateQuote } from '@/lib/repo';
 import type { QuoteKind, QuoteRow } from '@/types/legi';
 
@@ -68,18 +69,29 @@ export function useQuoteBoard(
     });
   }, []);
 
+  const canStep = useCallback((q: QuoteRow, dir: -1 | 1) => orderForStep(ordered, q.id, dir) !== null, [ordered]);
+
+  const step = useCallback(
+    (q: QuoteRow, dir: -1 | 1) => {
+      const order = orderForStep(ordered, q.id, dir);
+      if (order !== null) updateQuote(uid, q.id, { order });
+    },
+    [uid, ordered],
+  );
+
   const act = useCallback(
     (a: MenuAction, q: QuoteRow) => {
       if (a === 'edit') setEditingId(q.id);
       else if (a === 'favorite') updateQuote(uid, q.id, { favorite: !q.favorite });
       else if (a === 'move') setMoving([q]);
+      else if (a === 'up' || a === 'down') step(q, a === 'up' ? -1 : 1);
       else if (a === 'delete') trashQuotes(uid, [q.id]);
       else if (a === 'select') {
         setSelecting(true);
         setSelected(new Set([q.id]));
       } else if (a === 'slow' && q.bookId) router.push(`/slow/?id=${q.bookId}&from=${q.id}`);
     },
-    [uid, router],
+    [uid, router, step],
   );
 
   // A click edits; only j/k shows the focus bar.
@@ -91,9 +103,17 @@ export function useQuoteBoard(
   // Desktop keys.
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (e.defaultPrevented || e.metaKey || e.ctrlKey || e.altKey || inField(e.target) || editingId) return;
+      if (e.defaultPrevented || e.metaKey || e.ctrlKey || inField(e.target) || editingId) return;
       if (document.querySelector('[role="dialog"]')) return;
       const i = focusedId ? ordered.findIndex((q) => q.id === focusedId) : -1;
+      if (e.altKey) {
+        if (i >= 0 && (e.key === 'ArrowUp' || e.key === 'ArrowDown')) {
+          e.preventDefault();
+          step(ordered[i], e.key === 'ArrowUp' ? -1 : 1);
+          requestAnimationFrame(() => scrollToQuote(ordered[i].id));
+        }
+        return;
+      }
       const focusAt = (n: number) => {
         const q = ordered[Math.max(0, Math.min(ordered.length - 1, n))];
         if (!q) return;
@@ -151,7 +171,7 @@ export function useQuoteBoard(
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [ordered, focusedId, editingId, selectedRows, selecting, toggle, clearSelection, uid]);
+  }, [ordered, focusedId, editingId, selectedRows, selecting, toggle, clearSelection, uid, step]);
 
   const renderItem = (q: QuoteRow, index?: number, motion?: { rose?: boolean; going?: boolean }) =>
     editingId === q.id && !motion?.going ? (
@@ -179,7 +199,7 @@ export function useQuoteBoard(
 
   const overlays = (
     <>
-      <QuoteMenu quote={menu} onClose={() => setMenu(null)} onAction={act} />
+      <QuoteMenu quote={menu} canStep={canStep} onClose={() => setMenu(null)} onAction={act} />
       <MoveSheet
         open={moving !== null}
         startBookId={opts.bookId}

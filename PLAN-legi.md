@@ -144,6 +144,7 @@ export type Quote = {
   kind: QuoteKind;
   text: string;                // 1..5000, NFC, có thể chứa **nhấn mạnh**
   note: string;                // 0..5000, suy nghĩ riêng gắn với quote
+  order?: number;              // chỉ có sau khi `move up/down`; thiếu thì xếp theo createdAt
   page: number | null;         // 1..20000
   favorite: boolean;
   source: QuoteSource;
@@ -166,8 +167,8 @@ thứ tự, thụt lề, đổi tên đều là 1 lần ghi, không bao giờ l�
 **Vì sao không lưu các bản text đã chuẩn hoá:** app đọc toàn bộ quotes vào bộ nhớ (xem 5.1),
 nên tính lúc chạy là đủ nhanh. Schema gọn hơn, không bao giờ lệch.
 
-**Thứ tự quote trong một section:** `page` tăng dần (null xếp cuối), rồi `createdAt` tăng dần.
-Không có kéo thả sắp xếp tay.
+**Thứ tự quote trong một section:** `page` tăng dần (null xếp cuối), rồi `order ?? createdAt` tăng
+dần. Sắp xếp tay chỉ bằng `move up · move down` (đổi chỗ với quote kề bên cùng page). Không kéo thả.
 
 ### Firestore rules (`firestore.rules.template`)
 
@@ -645,7 +646,8 @@ Lưu ở `legi.fold.<bookId>`. Phím: `[` đóng hết, `]` mở hết. Trong ou
 Nút `stopped at` → ô số tại chỗ → Enter → `updateBook({ currentPage })`. Không tạo quote.
 
 **5. Chọn nhiều.**
-- Mobile: chạm giữ 450ms một quote → menu: `edit · favorite · move · select · delete`.
+- Mobile: chạm giữ 450ms một quote → menu: `edit · favorite · move · move up · move down · select · delete`
+  (`move up/down` chỉ hiện khi quote kề bên cùng page). Desktop: `⌥↑/⌥↓` trên quote đang focus.
   `select` → vào chế độ chọn; chạm các quote khác để chọn thêm.
 - Desktop: `x` chọn quote đang focus; `Shift+click` chọn nhiều.
 - Thanh dưới cùng khi đang chọn: `3 selected` `move · merge · delete · cancel`.
@@ -1026,3 +1028,4 @@ Checklist P6:
 | 2026-10-13 | Ô nhập còn 1 hàng điều khiển: chương · loại (bấm để đổi) · + note · p. · save; `B` chỉ hiện khi bôi đen; chưa chọn chương thì mặc định chương cuối của sách | Bớt nút; không còn `no chapter` khi sách đã có chương |
 | 2026-10-15 | P6: cắt ảnh sau khi chụp; `add inside` / `add below` trong `edit`; chạm mục khi đang gõ tên mới để chọn chỗ đặt; `startPage` cho mục, quote tự vào mục theo số trang | Góp ý sau khi dùng thật trên điện thoại |
 | 2026-10-15 | Câu hay ngoài sách: phương án A, mỗi nguồn (video, web, người) là một `Book` với `format` mới, không lên kệ sách | Chủ app muốn xem lại theo từng nguồn như một cuốn sách |
+| 2026-10-27 | `move up · move down` cho quote cùng page (trường `order`, desktop `⌥↑/⌥↓`); vẫn không kéo thả | Đọc lại cần đúng mạch ý; kéo thả tranh với chạm giữ và cuộn trên iPhone, quote dài khó kéo |

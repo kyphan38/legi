@@ -3,14 +3,27 @@
 import Sheet from '@/components/Sheet';
 import type { QuoteRow } from '@/types/legi';
 
-export type MenuAction = 'edit' | 'favorite' | 'move' | 'select' | 'delete' | 'slow';
+export type MenuAction = 'edit' | 'favorite' | 'move' | 'up' | 'down' | 'select' | 'delete' | 'slow';
 
 /** Long press / right click menu for one quote. */
-export default function QuoteMenu({ quote, onClose, onAction }: { quote: QuoteRow | null; onClose: () => void; onAction: (a: MenuAction, q: QuoteRow) => void }) {
+export default function QuoteMenu({
+  quote,
+  canStep,
+  onClose,
+  onAction,
+}: {
+  quote: QuoteRow | null;
+  /** Whether move up / move down has a neighbor to pass. */
+  canStep: (q: QuoteRow, dir: -1 | 1) => boolean;
+  onClose: () => void;
+  onAction: (a: MenuAction, q: QuoteRow) => void;
+}) {
   const items: { a: MenuAction; label: string }[] = [
     { a: 'edit', label: 'edit' },
     { a: 'favorite', label: quote?.favorite ? 'unstar' : 'star' },
     { a: 'move', label: 'move' },
+    ...(quote && canStep(quote, -1) ? [{ a: 'up' as const, label: 'move up' }] : []),
+    ...(quote && canStep(quote, 1) ? [{ a: 'down' as const, label: 'move down' }] : []),
     { a: 'select', label: 'select' },
     { a: 'slow', label: 'read slowly from here' },
     { a: 'delete', label: 'delete' },

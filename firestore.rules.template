@@ -46,7 +46,7 @@ service cloud.firestore {
     }
 
     function validQuote(d) {
-      return d.keys().hasOnly(['bookId','sectionId','kind','text','note','page','favorite','source',
+      return d.keys().hasOnly(['bookId','sectionId','kind','text','note','page','order','favorite','source',
           'answeredBy','shownCount','lastShownAt','trashedWithBook','deletedAt','createdAt','updatedAt'])
         && (d.bookId == null || d.bookId is string)
         && (d.sectionId == null || d.sectionId is string)
@@ -54,6 +54,7 @@ service cloud.firestore {
         && d.text is string && d.text.size() > 0 && d.text.size() <= 5000
         && d.note is string && d.note.size() <= 5000
         && (d.page == null || (d.page is int && d.page > 0 && d.page <= 20000))
+        && (!('order' in d) || d.order is number)
         && d.favorite is bool
         && d.source in ['typed','paste','ocr']
         && (d.answeredBy == null || d.answeredBy is string)

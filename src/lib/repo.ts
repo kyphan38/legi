@@ -183,13 +183,13 @@ export function splitQuote(uid: string, row: QuoteRow, at: number, now = Date.no
   const id = newQuoteId(uid);
   const b = writeBatch(getDb());
   b.update(quoteRef(uid, row.id), { text: parts[0], updatedAt: now });
-  b.set(
-    quoteRef(uid, id),
-    buildQuote(
-      { bookId: row.bookId, sectionId: row.sectionId, kind: row.kind, text: parts[1], note: '', page: row.page, source: row.source },
-      row.createdAt + 1,
-    ),
+  const second = buildQuote(
+    { bookId: row.bookId, sectionId: row.sectionId, kind: row.kind, text: parts[1], note: '', page: row.page, source: row.source },
+    row.createdAt + 1,
   );
+  // A quote moved by hand sorts by `order`, so the second part needs one too.
+  if (row.order !== undefined) second.order = row.order + 1e-3;
+  b.set(quoteRef(uid, id), second);
   b.commit().catch(warn('splitQuote'));
   pushUndo('Split', () => {
     const u = writeBatch(getDb());

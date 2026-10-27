@@ -5,7 +5,7 @@ import { onThisDay, pickAnother, pickDaily, revisitBoost } from '@/lib/daily';
 import { addDays, dayOf } from '@/lib/day';
 import { dice, findSimilar, indexText, trigrams } from '@/lib/dup';
 import { bookToMarkdown, toJson, toMarkdown } from '@/lib/export';
-import { compareQuotes, orderBetween, sortQuotes } from '@/lib/order';
+import { compareQuotes, orderBetween, orderForStep, sortQuotes } from '@/lib/order';
 import { mergeFields, splitText } from '@/lib/quote-ops';
 import { markRanges, searchAll } from '@/lib/search';
 import { isSource } from '@/lib/source';
@@ -69,6 +69,35 @@ test('order: page first (none last), then time', () => {
   assert.equal(orderBetween(2, null), 3);
   assert.equal(orderBetween(null, 2), 1);
   assert.equal(orderBetween(1, 2), 1.5);
+});
+
+test('order: a set order wins over time, still after page', () => {
+  const qs = [quote('a', { page: 5, createdAt: 1 }), quote('b', { page: 5, createdAt: 2 }), quote('c', { page: 5, createdAt: 3, order: 0.5 }), quote('d', { page: 2, createdAt: 9, order: 99 })];
+  assert.deepEqual(sortQuotes(qs).map((q) => q.id), ['d', 'c', 'a', 'b']);
+});
+
+test('order: move up/down passes one neighbor of the same page', () => {
+  const list = sortQuotes([
+    quote('a', { page: 5, createdAt: 10 }),
+    quote('b', { page: 5, createdAt: 20 }),
+    quote('c', { page: 5, createdAt: 30 }),
+    quote('d', { page: 6, createdAt: 40 }),
+  ]);
+  const moved = (id: string, dir: -1 | 1) => {
+    const order = orderForStep(list, id, dir);
+    assert.notEqual(order, null);
+    return sortQuotes(list.map((q) => (q.id === id ? { ...q, order: order as number } : q))).map((q) => q.id);
+  };
+  assert.deepEqual(moved('c', -1), ['a', 'c', 'b', 'd']);
+  assert.deepEqual(moved('b', -1), ['b', 'a', 'c', 'd']);
+  assert.deepEqual(moved('a', 1), ['b', 'a', 'c', 'd']);
+  assert.deepEqual(moved('b', 1), ['a', 'c', 'b', 'd']);
+  // No neighbor, or the neighbor is on another page / section.
+  assert.equal(orderForStep(list, 'a', -1), null);
+  assert.equal(orderForStep(list, 'c', 1), null);
+  assert.equal(orderForStep(list, 'd', -1), null);
+  const other = list.map((q) => (q.id === 'b' ? { ...q, sectionId: 'x' } : q));
+  assert.equal(orderForStep(other, 'c', -1), null);
 });
 
 test('trash: days left, purgeable, trashed with book', () => {

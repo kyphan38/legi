@@ -19,6 +19,7 @@ const HELP: [string, string][] = [
   ['f', 'star'],
   ['x  ⇧click', 'select'],
   ['m', 'move'],
+  ['⌥↑  ⌥↓', 'move up, down'],
   ['⌫', 'delete'],
   ['⌘Z', 'undo'],
   ['[  ]', 'fold, unfold all'],

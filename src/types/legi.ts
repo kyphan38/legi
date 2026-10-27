@@ -51,6 +51,8 @@ export type Quote = {
   text: string;
   note: string;
   page: number | null;
+  /** Set by move up/down only; when missing, createdAt orders the quote. */
+  order?: number;
   favorite: boolean;
   source: QuoteSource;
   /** kind 'question' only: the quote that answers it. */
