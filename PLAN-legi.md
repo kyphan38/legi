@@ -996,6 +996,12 @@ Checklist P6:
 - Kết nối cogi: `think about this` gửi quote sang cogi.
 - Liên kết quote với nhau (`related`).
 - Trang `Year` (số sách đọc xong, số quote).
+- Daily theo từng sách (2026-10-28): nút bật/tắt trong menu sách, tắt thì `pickDaily` bỏ qua
+  quote của sách đó. Hiện tại sách nhiều quote vẫn chiếm Daily nhiều hơn, chủ app thấy không sao,
+  nên chưa làm.
+- Đọc to tiếng Việt trong Read slowly (2026-10-28): nút nghe, máy đọc câu đang xem bằng giọng
+  tiếng Việt (TTS), đọc xong tự sang câu tiếp. Cần thử giọng `speechSynthesis` có sẵn trên
+  iPhone và Mac trước khi tính tới dịch vụ ngoài.
 
 ## 10. Nhật ký quyết định
 
