@@ -160,6 +160,17 @@ textarea:focus-visible {
   overflow-wrap: anywhere;
   white-space: pre-wrap;
 }
+/* A faint line between two quotes, so a quote with paragraphs reads as one.
+   Lists use space-y-5 (20px), so -10px puts it in the middle of the gap. */
+.qrow + .qrow::before {
+  content: '';
+  position: absolute;
+  top: -10px;
+  left: 12px;
+  right: 12px;
+  border-top: 1px solid var(--line);
+  pointer-events: none;
+}
 /* Opening quote mark hangs in the margin, like a printed book. */
 .hang {
   margin-left: -0.42em;

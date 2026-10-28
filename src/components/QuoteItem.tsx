@@ -45,7 +45,7 @@ function QuoteItem({ quote, selected, focused, selecting, footer, onOpen, onMenu
       id={`q-${quote.id}`}
       data-quote={quote.id}
       tabIndex={-1}
-      className={`group no-callout relative -mx-3 cursor-text rounded-md px-3 py-1.5 outline-none transition-colors ${selected ? 'bg-wash' : ''} ${focused ? 'shadow-[inset_2px_0_0_var(--faint)]' : ''} ${rise ? 'rise' : ''} ${going ? 'row-out' : ''}`}
+      className={`qrow group no-callout relative -mx-3 cursor-text rounded-md px-3 py-1.5 outline-none transition-colors ${selected ? 'bg-wash' : ''} ${focused ? 'shadow-[inset_2px_0_0_var(--faint)]' : ''} ${rise ? 'rise' : ''} ${going ? 'row-out' : ''}`}
       style={rise && !rose && riseIndex !== undefined ? { animationDelay: `${riseIndex * 25}ms` } : undefined}
       aria-hidden={going || undefined}
       inert={going}
