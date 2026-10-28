@@ -1,7 +1,7 @@
 # legi - Implementation plan
 
 App lưu trích dẫn khi đọc sách. Chủ yếu sách giấy, đôi khi PDF.
-Next.js (static export) + Firebase (Auth + Firestore + 1 Cloud Function cho AI ở P5) + Vercel.
+Next.js (static export) + Firebase (Auth + Firestore + Cloud Functions: AI ở P5, giọng đọc ở P7) + Vercel.
 Một người dùng, iPhone (PWA) là chính, Mac là màn hình thứ hai.
 **Giao diện tiếng Anh, nội dung gõ tiếng Việt.**
 
@@ -987,18 +987,28 @@ Checklist P6:
 
 **2. Đọc to trong Read slowly.**
 - Nút `listen` trên thanh trên (cạnh `all · starred`), bật thì thành `stop`.
-- Dùng `speechSynthesis` có sẵn, không dịch vụ ngoài, không tốn tiền. Câu có dấu tiếng Việt
-  dùng giọng `vi`, câu khác dùng giọng `en`. Bỏ dấu `**`.
-- Đọc từng câu nhỏ (tách theo dấu câu, dòng), vì Chrome hay cắt giọng đọc dài quá ~15 giây.
+- Giọng: Google Chirp 3 HD, `vi-VN-Chirp3-HD-Charon` (câu có dấu tiếng Việt) hoặc
+  `en-US-Chirp3-HD-Charon`. Giọng có sẵn trong máy nghe như robot nên chỉ dùng khi mất mạng
+  hoặc gọi lỗi (chủ app chọn ngày 2026-10-28). Đổi giọng: sửa `VOICE` trong `src/lib/tts.ts`.
+- Cloud Function `speak` (cùng `guard()` email): nhận 1 quote, trả 1 MP3 (base64). Không key:
+  service account của function gọi Text-to-Speech API (phải bật API này trong project).
+  Quote dài hơn 3000 byte được tách theo câu, các MP3 nối lại. Không lưu gì, không log chữ.
+- MP3 lưu trên máy (IndexedDB `legi-tts`, khoá = giọng + ngôn ngữ + chữ), nghe lại không gọi
+  nữa, chạy cả khi offline. Đăng xuất thì xoá. Đang đọc câu này thì tải sẵn câu sau.
+- Phát bằng Web Audio (iOS chỉ cho bắt đầu bằng một lần chạm, sau đó tự đọc tiếp được).
+  `navigator.audioSession.type = 'playback'` để vẫn nghe khi gạt im lặng.
 - Đọc xong quote → nghỉ ~0.8 giây → sang quote tiếp và đọc tiếp. Hết danh sách thì dừng.
 - Vuốt / chạm / phím khi đang nghe: sang câu đó và đọc từ đầu câu đó.
 - Giữ màn hình sáng khi đang nghe (`navigator.wakeLock`, có thì dùng). Rời trang thì dừng.
-- Hàm thuần `speechChunks(text)` và `voiceLang(text)` có test.
+- Giá: khoảng 1 triệu ký tự miễn phí mỗi tháng (~5.000 quote), sau đó ~$30 / 1 triệu ký tự.
+- Hàm thuần có test: `speechChunks`, `voiceLang` (máy), `checkSpeak`, `splitForSpeech` (function).
 
 Checklist P7:
 - [ ] Deploy rules → tắt Daily một sách trên iPhone → đổi tên sách vẫn lưu được.
 - [ ] Sách tắt Daily không còn ra ở `another`.
-- [ ] iPhone: `listen` đọc giọng Việt, tự sang câu tiếp, màn hình không tắt.
+- [ ] Bật Text-to-Speech API trong project, deploy function `speak`.
+- [ ] iPhone: `listen` đọc giọng Charon, tự sang câu tiếp, màn hình không tắt, gạt im lặng vẫn nghe.
+- [ ] Nghe lại một câu khi tắt mạng: vẫn đọc giọng Charon (đã lưu trên máy).
 - [ ] Mac: `listen` → `stop` dừng ngay, `Esc` dừng và về sách.
 
 ---
@@ -1058,3 +1068,4 @@ Checklist P7:
 | 2026-10-15 | Câu hay ngoài sách: phương án A, mỗi nguồn (video, web, người) là một `Book` với `format` mới, không lên kệ sách | Chủ app muốn xem lại theo từng nguồn như một cuốn sách |
 | 2026-10-27 | `move up · move down` cho quote cùng page (trường `order`, desktop `⌥↑/⌥↓`); vẫn không kéo thả | Đọc lại cần đúng mạch ý; kéo thả tranh với chạm giữ và cuộn trên iPhone, quote dài khó kéo |
 | 2026-10-28 | Bật/tắt Daily theo sách (`daily`), đọc to trong Read slowly bằng `speechSynthesis` | Chủ app muốn chọn sách nào ra Daily, và nghe lại quote khi không nhìn màn hình; giọng có sẵn thì không tốn tiền, không cần server |
+| 2026-10-28 | Đọc to bằng Google Chirp 3 HD (Charon) qua function `speak`, giọng máy chỉ là dự phòng | Giọng có sẵn trong máy nghe như robot; Chirp 3 HD tự nhiên, đã GA, gần như miễn phí với số quote của một người |

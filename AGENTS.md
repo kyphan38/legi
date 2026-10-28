@@ -1,8 +1,8 @@
 # Agent instructions (legi)
 
 legi keeps quotes from the books you read: a static Next.js PWA that talks
-straight to Firestore. There is no server code (until P5 adds one Cloud
-Function for AI) - data is protected by `firestore.rules`.
+straight to Firestore. The only server code is a few Cloud Functions
+(AI in P5, the read-aloud voice in P7) - data is protected by `firestore.rules`.
 
 ## Read first
 

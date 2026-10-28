@@ -16,7 +16,7 @@ import Typewriter from '@/components/Typewriter';
 import QuoteText from '@/components/QuoteText';
 import { useLibrary } from '@/contexts/LibraryContext';
 import { buildTree, flatten, pathOf } from '@/lib/outline';
-import { pickVoice, speechChunks, voiceLang } from '@/lib/speech';
+import { loadSpeech, playMp3, speakOnDevice, unlockAudio } from '@/lib/tts';
 import type { QuoteRow } from '@/types/legi';
 
 const OUT_MS = 120;
@@ -73,45 +73,45 @@ export default function SlowView() {
     onSpoken.current = () => (i + 1 < list.length ? go(1) : setListening(false));
   });
 
+  // Fetched while the current quote plays, so the next one starts without a wait.
+  const nextText = useRef('');
+  useEffect(() => {
+    nextText.current = list[i + 1]?.text ?? '';
+  });
+
   const toggleListen = () => {
-    // iOS only lets speech start from a tap: speak once here to unlock it.
-    if (!listening) speechSynthesis.speak(new SpeechSynthesisUtterance(''));
+    // iOS only starts audio from a tap: unlock both the cloud and the device voice here.
+    if (!listening) {
+      unlockAudio();
+      speechSynthesis.speak(new SpeechSynthesisUtterance(''));
+    }
     setListening(!listening);
   };
 
-  // Speak the quote on screen, chunk by chunk; a new quote (or stop) cancels the old one.
+  // Read the quote on screen with the cloud voice, or the device voice when offline or failing.
+  // A new quote (or stop) cancels the old one.
   const quoteId = quote?.id;
   const text = quote?.text ?? '';
   useEffect(() => {
     if (!listening || !quoteId) return;
-    const synth = speechSynthesis;
-    const lang = voiceLang(text);
-    const voice = pickVoice(synth.getVoices(), lang);
-    const chunks = speechChunks(text);
     let live = true;
-    let n = 0;
+    let stop = () => {};
     let timer: ReturnType<typeof setTimeout> | undefined;
-    const next = () => {
-      if (!live) return;
-      if (n >= chunks.length) {
-        timer = setTimeout(() => live && onSpoken.current(), PAUSE_MS);
-        return;
-      }
-      const u = new SpeechSynthesisUtterance(chunks[n++]);
-      u.lang = lang;
-      if (voice) u.voice = voice;
-      u.onend = next;
-      u.onerror = (e) => {
-        if (live && e.error !== 'interrupted' && e.error !== 'canceled') setListening(false);
-      };
-      synth.speak(u);
+    const done = () => {
+      if (live) timer = setTimeout(() => live && onSpoken.current(), PAUSE_MS);
     };
-    synth.cancel();
-    next();
+    (async () => {
+      const mp3 = await loadSpeech(text).catch(() => null);
+      if (!live) return;
+      const cloud = mp3 ? await playMp3(mp3, done).catch(() => null) : null;
+      if (!live) return cloud?.();
+      stop = cloud ?? speakOnDevice(text, done, () => live && setListening(false));
+      if (nextText.current) loadSpeech(nextText.current).catch(() => {});
+    })();
     return () => {
       live = false;
       clearTimeout(timer);
-      synth.cancel();
+      stop();
     };
   }, [listening, quoteId, text]);
 

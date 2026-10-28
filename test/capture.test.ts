@@ -83,3 +83,24 @@ test('parseVoice and the prompt', () => {
   assert.match(VOICE_PROMPT, /word for word/);
   assert.match(VOICE_PROMPT, /xuống dòng/);
 });
+
+import { checkSpeak, splitForSpeech, synthesizeBody } from '../functions/src/speak.ts';
+
+test('checkSpeak: text, language, voice name', () => {
+  assert.throws(() => checkSpeak({ text: '  ', lang: 'vi-VN', voice: 'Charon' }), /No text/);
+  assert.throws(() => checkSpeak({ text: 'a'.repeat(5001), lang: 'vi-VN', voice: 'Charon' }), /too long/);
+  assert.throws(() => checkSpeak({ text: 'Xin chào', lang: 'fr-FR', voice: 'Charon' }), /language/);
+  assert.throws(() => checkSpeak({ text: 'Xin chào', lang: 'vi-VN', voice: 'vi-VN-Wavenet-A' }), /voice/);
+  assert.deepEqual(checkSpeak({ text: ' Thói quen là **lãi kép** ', lang: 'vi-VN', voice: 'Charon' }), { text: 'Thói quen là lãi kép', lang: 'vi-VN', voice: 'Charon' });
+  assert.equal(synthesizeBody('x', 'vi-VN', 'Charon').voice.name, 'vi-VN-Chirp3-HD-Charon');
+});
+
+test('splitForSpeech: parts under the byte limit, nothing lost', () => {
+  assert.deepEqual(splitForSpeech('Ngắn thôi.'), ['Ngắn thôi.']);
+  const long = Array.from({ length: 120 }, (_, i) => `Câu thứ ${i} nói về thói quen tốt.`).join(' ');
+  const parts = splitForSpeech(long, 500);
+  assert.ok(parts.length > 1 && parts.every((p) => new TextEncoder().encode(p).length <= 500));
+  assert.equal(parts.join(' '), long);
+  const noStop = 'chữ '.repeat(400).trim();
+  assert.ok(splitForSpeech(noStop, 300).every((p) => new TextEncoder().encode(p).length <= 300));
+});
