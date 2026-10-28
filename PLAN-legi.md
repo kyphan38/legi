@@ -128,6 +128,7 @@ export type Book = {
   currentPage: number | null;  // trang đang đọc tới
   pdfUrl: string | null;       // chỉ là link, không lưu file
   takeaway: string | null;     // câu trả lời "What stays with you?" (P4), <= 2000
+  daily?: boolean;             // false = không đưa vào Daily (P7); thiếu = có
   sections: Section[];         // <= 500 phần tử, lưu ngay trong doc sách
   startedAt: number;
   finishedAt: number | null;
@@ -177,7 +178,7 @@ Copy khung từ hodi (`allowed()`, `isOwner()`, chặn `/{document=**}`). Khác 
 ```
 function validBook(d) {
   return d.keys().hasOnly(['title','author','status','format','totalPages','currentPage',
-      'pdfUrl','takeaway','sections','startedAt','finishedAt','lastOpenedAt','deletedAt',
+      'pdfUrl','takeaway','daily','sections','startedAt','finishedAt','lastOpenedAt','deletedAt',
       'createdAt','updatedAt'])
     && d.title is string && d.title.size() > 0 && d.title.size() <= 300
     && d.author is string && d.author.size() <= 200
@@ -187,6 +188,7 @@ function validBook(d) {
     && (d.currentPage == null || (d.currentPage is int && d.currentPage > 0 && d.currentPage <= 20000))
     && (d.pdfUrl == null || (d.pdfUrl is string && d.pdfUrl.size() <= 2000))
     && (d.takeaway == null || (d.takeaway is string && d.takeaway.size() <= 2000))
+    && (!('daily' in d) || d.daily is bool)
     && d.sections is list && d.sections.size() <= 500
     && d.startedAt is int && d.lastOpenedAt is int
     && (d.finishedAt == null || d.finishedAt is int)
@@ -973,6 +975,32 @@ Checklist P6:
 - [ ] `paste contents` với mục lục có số trang ở cuối dòng.
 - [ ] Thêm một nguồn `person` → ghi 1 câu → câu đó có trong tìm kiếm, Daily, export.
 
+### P7 - Daily theo sách, đọc to (2026-10-28)
+
+**1. Bật/tắt Daily cho từng sách.**
+- Dữ liệu: `Book.daily?: boolean`. Thiếu (dữ liệu cũ) hoặc `true` = có trong Daily; `false` = không.
+- Rules: thêm `daily` vào `hasOnly`, kiểm `(!('daily' in d) || d.daily is bool)`.
+  **Phải deploy rules mới trước**, nếu không mọi lệnh ghi vào sách đã tắt Daily bị từ chối.
+- `candidates()` bỏ quote của sách có `daily === false` (cả `pickDaily` lẫn `another`).
+  Inbox không đổi. Câu Daily đã chọn của hôm nay giữ nguyên.
+- UI: chạm tên sách → dòng `daily  on · off` (giống `status`).
+
+**2. Đọc to trong Read slowly.**
+- Nút `listen` trên thanh trên (cạnh `all · starred`), bật thì thành `stop`.
+- Dùng `speechSynthesis` có sẵn, không dịch vụ ngoài, không tốn tiền. Câu có dấu tiếng Việt
+  dùng giọng `vi`, câu khác dùng giọng `en`. Bỏ dấu `**`.
+- Đọc từng câu nhỏ (tách theo dấu câu, dòng), vì Chrome hay cắt giọng đọc dài quá ~15 giây.
+- Đọc xong quote → nghỉ ~0.8 giây → sang quote tiếp và đọc tiếp. Hết danh sách thì dừng.
+- Vuốt / chạm / phím khi đang nghe: sang câu đó và đọc từ đầu câu đó.
+- Giữ màn hình sáng khi đang nghe (`navigator.wakeLock`, có thì dùng). Rời trang thì dừng.
+- Hàm thuần `speechChunks(text)` và `voiceLang(text)` có test.
+
+Checklist P7:
+- [ ] Deploy rules → tắt Daily một sách trên iPhone → đổi tên sách vẫn lưu được.
+- [ ] Sách tắt Daily không còn ra ở `another`.
+- [ ] iPhone: `listen` đọc giọng Việt, tự sang câu tiếp, màn hình không tắt.
+- [ ] Mac: `listen` → `stop` dừng ngay, `Esc` dừng và về sách.
+
 ---
 
 ## 8. Những gì KHÔNG làm
@@ -995,12 +1023,6 @@ Checklist P6:
 - Kết nối cogi: `think about this` gửi quote sang cogi.
 - Liên kết quote với nhau (`related`).
 - Trang `Year` (số sách đọc xong, số quote).
-- Daily theo từng sách (2026-10-28): nút bật/tắt trong menu sách, tắt thì `pickDaily` bỏ qua
-  quote của sách đó. Hiện tại sách nhiều quote vẫn chiếm Daily nhiều hơn, chủ app thấy không sao,
-  nên chưa làm.
-- Đọc to tiếng Việt trong Read slowly (2026-10-28): nút nghe, máy đọc câu đang xem bằng giọng
-  tiếng Việt (TTS), đọc xong tự sang câu tiếp. Cần thử giọng `speechSynthesis` có sẵn trên
-  iPhone và Mac trước khi tính tới dịch vụ ngoài.
 
 ## 10. Nhật ký quyết định
 
@@ -1035,3 +1057,4 @@ Checklist P6:
 | 2026-10-15 | P6: cắt ảnh sau khi chụp; `add inside` / `add below` trong `edit`; chạm mục khi đang gõ tên mới để chọn chỗ đặt; `startPage` cho mục, quote tự vào mục theo số trang | Góp ý sau khi dùng thật trên điện thoại |
 | 2026-10-15 | Câu hay ngoài sách: phương án A, mỗi nguồn (video, web, người) là một `Book` với `format` mới, không lên kệ sách | Chủ app muốn xem lại theo từng nguồn như một cuốn sách |
 | 2026-10-27 | `move up · move down` cho quote cùng page (trường `order`, desktop `⌥↑/⌥↓`); vẫn không kéo thả | Đọc lại cần đúng mạch ý; kéo thả tranh với chạm giữ và cuộn trên iPhone, quote dài khó kéo |
+| 2026-10-28 | Bật/tắt Daily theo sách (`daily`), đọc to trong Read slowly bằng `speechSynthesis` | Chủ app muốn chọn sách nào ra Daily, và nghe lại quote khi không nhìn màn hình; giọng có sẵn thì không tốn tiền, không cần server |

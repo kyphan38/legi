@@ -28,7 +28,7 @@ service cloud.firestore {
 
     function validBook(d) {
       return d.keys().hasOnly(['title','author','status','format','totalPages','currentPage',
-          'pdfUrl','takeaway','sections','startedAt','finishedAt','lastOpenedAt','deletedAt',
+          'pdfUrl','takeaway','daily','sections','startedAt','finishedAt','lastOpenedAt','deletedAt',
           'createdAt','updatedAt'])
         && d.title is string && d.title.size() > 0 && d.title.size() <= 300
         && d.author is string && d.author.size() <= 200
@@ -38,6 +38,7 @@ service cloud.firestore {
         && (d.currentPage == null || (d.currentPage is int && d.currentPage > 0 && d.currentPage <= 20000))
         && (d.pdfUrl == null || (d.pdfUrl is string && d.pdfUrl.size() <= 2000))
         && (d.takeaway == null || (d.takeaway is string && d.takeaway.size() <= 2000))
+        && (!('daily' in d) || d.daily is bool)
         && d.sections is list && d.sections.size() <= 500
         && d.startedAt is int && d.lastOpenedAt is int
         && (d.finishedAt == null || d.finishedAt is int)

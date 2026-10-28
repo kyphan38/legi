@@ -212,6 +212,7 @@ function BookForm({ uid, book, onStatus, count }: { uid: string; book: BookRow; 
         </Field>
       )}
       {!source && <Choice label="status" value={book.status} options={STATUSES} onPick={onStatus} />}
+      <Choice label="daily" value={book.daily === false ? 'off' : 'on'} options={['on', 'off']} onPick={(v) => updateBook(uid, book.id, { daily: v === 'on' })} />
     </div>
   );
 }

@@ -30,6 +30,8 @@ export type Book = {
   pdfUrl: string | null;
   /** Answer to "What stays with you?" when the book is finished. */
   takeaway: string | null;
+  /** false keeps the book's quotes out of Daily. Missing on old data = in Daily. */
+  daily?: boolean;
   /** Kept inside the book doc, so a reorder or indent is one write. */
   sections: Section[];
   startedAt: number;

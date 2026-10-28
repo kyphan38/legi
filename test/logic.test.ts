@@ -9,6 +9,7 @@ import { compareQuotes, orderBetween, orderForStep, sortQuotes } from '@/lib/ord
 import { mergeFields, splitText } from '@/lib/quote-ops';
 import { markRanges, searchAll } from '@/lib/search';
 import { isSource } from '@/lib/source';
+import { speechChunks, voiceLang } from '@/lib/speech';
 import { spineShade, stackSize } from '@/lib/spine';
 import { daysLeft, purgeable, TRASH_MS, trashedWith } from '@/lib/trash';
 import { lastUndoStore, pushUndo, resetUndo, undo, undoSize } from '@/lib/undo';
@@ -172,6 +173,10 @@ test('daily: same day same pick, least shown first, favorites weigh more', () =>
   assert.equal(pickDaily([quote('t', { kind: 'thought' })], books, day)?.id, 't');
   assert.equal(pickDaily([quote('q', { kind: 'question' })], books, day), null);
   assert.equal(pickDaily([quote('x', { deletedAt: 1 })], books, day), null);
+  const off = new Map([['b1', book({ daily: false })]]);
+  assert.equal(pickDaily(qs, off, day), null);
+  assert.equal(pickAnother(qs, off, day, new Set(), 0.5), null);
+  assert.equal(pickDaily([quote('i', { bookId: null })], off, day)?.id, 'i');
 
   const fav = [quote('f', { favorite: true }), quote('n')];
   let favWins = 0;
@@ -189,6 +194,18 @@ test('daily: revisit windows', () => {
   assert.equal(revisitBoost(finished(15), fav, day), 1);
   assert.equal(revisitBoost(finished(7), quote('n'), day), 1);
   assert.equal(revisitBoost(book(), fav, day), 1);
+});
+
+test('speech: chunks by sentence and line, voice by letters', () => {
+  assert.deepEqual(speechChunks('Một câu **ngắn**. Câu hai!\nDòng ba'), ['Một câu ngắn.', 'Câu hai!', 'Dòng ba']);
+  const long = Array.from({ length: 30 }, (_, i) => `phần ${i}`).join(', ');
+  const parts = speechChunks(long);
+  assert.ok(parts.length > 1 && parts.every((p) => p.length <= 220));
+  assert.equal(parts.join(' '), long);
+  assert.deepEqual(speechChunks('  \n\n '), []);
+  assert.equal(voiceLang('Đi bộ đội là thiêng liêng'), 'vi-VN');
+  assert.equal(voiceLang('The best is yet to come.'), 'en-US');
+  assert.equal(voiceLang('Café à la carte'), 'en-US');
 });
 
 test('onThisDay: same month-day, earlier years, newest first', () => {

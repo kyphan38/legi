@@ -5,6 +5,7 @@
 //
 // → Space, tap right half, swipe left: next · ← tap left half, swipe right:
 // previous · Esc: back to the book at this quote. `all · starred` top right.
+// `listen` reads each quote aloud and moves on by itself.
 // ============================================================
 
 import Link from 'next/link';
@@ -15,9 +16,12 @@ import Typewriter from '@/components/Typewriter';
 import QuoteText from '@/components/QuoteText';
 import { useLibrary } from '@/contexts/LibraryContext';
 import { buildTree, flatten, pathOf } from '@/lib/outline';
+import { pickVoice, speechChunks, voiceLang } from '@/lib/speech';
 import type { QuoteRow } from '@/types/legi';
 
 const OUT_MS = 120;
+// A breath between two quotes when listening.
+const PAUSE_MS = 800;
 
 export default function SlowView() {
   const params = useSearchParams();
@@ -61,6 +65,73 @@ export default function SlowView() {
   const exit = useCallback(() => {
     router.replace(quote ? `/book/?id=${id}&q=${quote.id}` : `/book/?id=${id}`);
   }, [router, id, quote]);
+
+  const [listening, setListening] = useState(false);
+  const canSpeak = typeof window !== 'undefined' && 'speechSynthesis' in window;
+  const onSpoken = useRef(() => {});
+  useEffect(() => {
+    onSpoken.current = () => (i + 1 < list.length ? go(1) : setListening(false));
+  });
+
+  const toggleListen = () => {
+    // iOS only lets speech start from a tap: speak once here to unlock it.
+    if (!listening) speechSynthesis.speak(new SpeechSynthesisUtterance(''));
+    setListening(!listening);
+  };
+
+  // Speak the quote on screen, chunk by chunk; a new quote (or stop) cancels the old one.
+  const quoteId = quote?.id;
+  const text = quote?.text ?? '';
+  useEffect(() => {
+    if (!listening || !quoteId) return;
+    const synth = speechSynthesis;
+    const lang = voiceLang(text);
+    const voice = pickVoice(synth.getVoices(), lang);
+    const chunks = speechChunks(text);
+    let live = true;
+    let n = 0;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const next = () => {
+      if (!live) return;
+      if (n >= chunks.length) {
+        timer = setTimeout(() => live && onSpoken.current(), PAUSE_MS);
+        return;
+      }
+      const u = new SpeechSynthesisUtterance(chunks[n++]);
+      u.lang = lang;
+      if (voice) u.voice = voice;
+      u.onend = next;
+      u.onerror = (e) => {
+        if (live && e.error !== 'interrupted' && e.error !== 'canceled') setListening(false);
+      };
+      synth.speak(u);
+    };
+    synth.cancel();
+    next();
+    return () => {
+      live = false;
+      clearTimeout(timer);
+      synth.cancel();
+    };
+  }, [listening, quoteId, text]);
+
+  // Keep the screen on while listening, where the browser allows it.
+  useEffect(() => {
+    if (!listening || !('wakeLock' in navigator)) return;
+    let lock: WakeLockSentinel | null = null;
+    let done = false;
+    navigator.wakeLock
+      .request('screen')
+      .then((l) => {
+        if (done) l.release().catch(() => {});
+        else lock = l;
+      })
+      .catch(() => {});
+    return () => {
+      done = true;
+      lock?.release().catch(() => {});
+    };
+  }, [listening]);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -109,6 +180,11 @@ export default function SlowView() {
           {book.title}
         </button>
         <span className="min-w-0 flex-1 truncate">{where}</span>
+        {canSpeak && list.length > 0 && (
+          <button type="button" aria-pressed={listening} onClick={toggleListen} className={listening ? 'text-ink' : 'hover:text-muted'}>
+            {listening ? 'stop' : 'listen'}
+          </button>
+        )}
         <div className="flex gap-3" role="radiogroup" aria-label="Which quotes">
           <button type="button" role="radio" aria-checked={!starred} onClick={() => (setStarred(false), setIndex(0))} className={!starred ? 'text-ink' : 'hover:text-muted'}>
             all
