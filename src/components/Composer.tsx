@@ -22,7 +22,7 @@ import { clearDraft, readDraft, writeDraft } from '@/lib/draft';
 import { findSimilar, MIN_CHARS } from '@/lib/dup';
 import { toggleEmph } from '@/lib/emph';
 import { addSection, buildTree, flatten, pathOf, sectionForPage } from '@/lib/outline';
-import { takePageToken } from '@/lib/page-token';
+import { pagesPerBlock, takePageToken } from '@/lib/page-token';
 import { isSource } from '@/lib/source';
 import { cleanPaste, countBlocks, splitBlocks, type Block } from '@/lib/paste';
 import { createQuotes, updateBook, type QuoteInput } from '@/lib/repo';
@@ -45,7 +45,8 @@ type Props = {
   extra?: React.ReactNode;
 };
 
-type Split = { blocks: Block[]; text: string };
+// `text` and `page` are for "save as one"; `pages` gives each block its own page.
+type Split = { blocks: Block[]; pages: (number | null)[]; text: string; page: number | null };
 
 function ctxKey(bookId: string) {
   return `legi.ctx.${bookId}`;
@@ -127,13 +128,19 @@ const Composer = forwardRef<ComposerHandle, Props>(function Composer({ uid, book
     requestAnimationFrame(() => textRef.current?.focus());
   };
 
-  const write = (blocks: Block[], pageNum: number | null, cleanNote: string, base: string | null = validCtx) => {
+  const write = (
+    blocks: Block[],
+    pageNum: number | null,
+    cleanNote: string,
+    base: string | null = validCtx,
+    pages?: (number | null)[],
+  ) => {
     let secs: Section[] = sections;
     let sectionId = base;
     // Pasted headings nest under the chosen section: # = child of it, ## = child of the last #.
     const stack: (string | null)[] = [base];
     const inputs: QuoteInput[] = [];
-    for (const b of blocks) {
+    for (const [i, b] of blocks.entries()) {
       if (b.type === 'heading') {
         if (!book) continue;
         const depth = Math.min(b.depth, stack.length);
@@ -150,20 +157,22 @@ const Composer = forwardRef<ComposerHandle, Props>(function Composer({ uid, book
         kind,
         text: b.text,
         note: '',
-        page: pageNum,
+        page: pages ? pages[i] : pageNum,
         source: pasted ? 'paste' : 'typed',
       });
     }
     if (inputs.length > 0 && cleanNote) inputs[inputs.length - 1].note = cleanNote;
+    // The book moves on to the highest page in the paste.
+    const top = pages ? Math.max(0, ...pages.map((p) => p ?? 0)) || pageNum : pageNum;
     if (book) {
       const patch: Partial<BookRow> = {};
       if (secs !== sections) patch.sections = secs;
-      if (pageNum && (!book.currentPage || pageNum > book.currentPage)) patch.currentPage = pageNum;
+      if (top && (!book.currentPage || top > book.currentPage)) patch.currentPage = top;
       if (Object.keys(patch).length) updateBook(uid, book.id, patch);
       if (sectionId !== validCtx) pickCtx(sectionId);
     }
     const ids = createQuotes(uid, inputs);
-    reset(pageNum);
+    reset(top);
     onSaved?.(ids);
   };
 
@@ -179,8 +188,12 @@ const Composer = forwardRef<ComposerHandle, Props>(function Composer({ uid, book
     if (token.page) setManual(false);
     const base = token.page ? (sectionForPage(sections, token.page) ?? storedCtx) : validCtx;
     if (quotes > 1 || headings > 0) {
-      setSplit({ blocks, text: clean });
-      if (token.page) setPage(String(token.page));
+      // Many quotes: each one reads its own trailing page, not just the last one.
+      const field = Number(page) > 0 ? Math.min(20000, Math.floor(Number(page))) : null;
+      const per = pagesPerBlock(splitBlocks(tidy(text.trimEnd())), field);
+      setSplit({ blocks: per.blocks, pages: per.pages, text: clean, page: pageNum });
+      const last = per.pages.filter((p) => p !== null).at(-1);
+      if (last && last !== field) setPage(String(last));
       return;
     }
     write([{ type: 'quote', text: clean }], pageNum, cleanNote, base);
@@ -188,8 +201,8 @@ const Composer = forwardRef<ComposerHandle, Props>(function Composer({ uid, book
 
   const confirmSplit = (asOne: boolean) => {
     if (!split) return;
-    const pageNum = Number(page) > 0 ? Math.floor(Number(page)) : null;
-    write(asOne ? [{ type: 'quote', text: split.text }] : split.blocks, pageNum, tidy(note));
+    if (asOne) write([{ type: 'quote', text: split.text }], split.page, tidy(note));
+    else write(split.blocks, split.page, tidy(note), validCtx, split.pages);
   };
 
   const onKey = (e: KeyboardEvent<HTMLTextAreaElement>) => {

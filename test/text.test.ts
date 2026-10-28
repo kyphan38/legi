@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 
 import { toggleEmph, parseEmph } from '@/lib/emph';
-import { takePageToken } from '@/lib/page-token';
+import { pagesPerBlock, takePageToken } from '@/lib/page-token';
 import { cleanPaste, countBlocks, splitBlocks } from '@/lib/paste';
 import { tidy } from '@/lib/typo';
 
@@ -33,6 +33,17 @@ test('takePageToken reads only a trailing token', () => {
   assert.deepEqual(takePageToken('help52'), { text: 'help52', page: null });
   assert.deepEqual(takePageToken('Câu p0'), { text: 'Câu p0', page: null });
   assert.deepEqual(takePageToken('p52 ở đầu câu'), { text: 'p52 ở đầu câu', page: null });
+});
+
+test('pagesPerBlock: each quote keeps its own page, others follow the one before', () => {
+  const { blocks, pages } = pagesPerBlock(splitBlocks('# Ch 1\n\nMột p12\n\nHai\n\nBa tr.15'), 10);
+  assert.deepEqual(pages, [null, 12, 12, 15]);
+  assert.deepEqual(
+    blocks.map((b) => (b.type === 'quote' ? b.text : b.title)),
+    ['Ch 1', 'Một', 'Hai', 'Ba'],
+  );
+  assert.deepEqual(pagesPerBlock(splitBlocks('Một\n\nHai'), 7).pages, [7, 7]);
+  assert.deepEqual(pagesPerBlock(splitBlocks('Một\n\nHai'), null).pages, [null, null]);
 });
 
 test('splitBlocks: blank line = new quote, single line break stays', () => {
