@@ -6,7 +6,7 @@
 // Keys (all wait for the IME: Telex/VNI must finish a letter first):
 //   Enter on an empty last line → save · ⌘/Ctrl+Enter → save anywhere
 //   Tab → page field · Esc → leave (the draft stays) · ⌘B → **emphasis**
-// A blank line, or a "---" line when there is one, splits text into several quotes (asked first).
+// A blank line splits text into several quotes (asked first).
 // ============================================================
 
 import Link from 'next/link';
@@ -24,7 +24,7 @@ import { toggleEmph } from '@/lib/emph';
 import { addSection, buildTree, flatten, pathOf, sectionForPage } from '@/lib/outline';
 import { pagesPerBlock, takePageToken } from '@/lib/page-token';
 import { isSource } from '@/lib/source';
-import { cleanPaste, countBlocks, dropSeparators, splitBlocks, type Block } from '@/lib/paste';
+import { cleanPaste, countBlocks, splitBlocks, type Block } from '@/lib/paste';
 import { createQuotes, updateBook, type QuoteInput } from '@/lib/repo';
 import { readJson, writeJson } from '@/lib/store';
 import { tidy } from '@/lib/typo';
@@ -196,12 +196,12 @@ const Composer = forwardRef<ComposerHandle, Props>(function Composer({ uid, book
       if (last && last !== field) setPage(String(last));
       return;
     }
-    write([{ type: 'quote', text: dropSeparators(clean) }], pageNum, cleanNote, base);
+    write([{ type: 'quote', text: clean }], pageNum, cleanNote, base);
   };
 
   const confirmSplit = (asOne: boolean) => {
     if (!split) return;
-    if (asOne) write([{ type: 'quote', text: dropSeparators(split.text) }], split.page, tidy(note));
+    if (asOne) write([{ type: 'quote', text: split.text }], split.page, tidy(note));
     else write(split.blocks, split.page, tidy(note), validCtx, split.pages);
   };
 

@@ -2,8 +2,6 @@
 // legi - Pasted text and splitting into quotes
 //
 // A blank line separates two quotes (that is how the owner already writes).
-// If the text has a "---" line, only "---" separates quotes, so one quote can
-// hold several paragraphs.
 // Lines starting with #, ##, ### are headings → sections (for pasting old notes).
 // ============================================================
 
@@ -16,17 +14,6 @@ export type Block =
 const SOFT_HYPHEN = new RegExp(String.fromCharCode(0xad), 'g');
 const SENTENCE_END = /[.!?:…”"]$/;
 const LINE_START_KEEP = /^(\p{Lu}|[-•]|\d+\.)/u;
-// "---", "***", "* * *". iPhone turns "--" into a long dash, so two dash characters count.
-const DASHES = '-' + String.fromCharCode(0x2013, 0x2014);
-const SEPARATOR = new RegExp(`^[ \\t]*(?:(?:[${DASHES}][ \\t]*){2,}|(?:\\*[ \\t]*){3,})$`);
-const SEPARATOR_LINES = new RegExp(SEPARATOR.source, 'gm');
-
-export const isSeparator = (line: string) => SEPARATOR.test(line);
-
-/** "Save as one quote" after a split: separator lines become plain paragraph breaks. */
-export function dropSeparators(text: string): string {
-  return text.replace(SEPARATOR_LINES, '').replace(/\n[ \t]*\n(?:[ \t]*\n)+/g, '\n\n').trim();
-}
 
 /**
  * Cleans text copied from a PDF: joins words split by a hyphen at a line end,
@@ -38,9 +25,7 @@ export function cleanPaste(raw: string): string {
   const text = nfc(raw)
     .replace(/\r\n?/g, '\n')
     .replace(SOFT_HYPHEN, '')
-    .replace(/(\p{L})-\n(\p{Ll})/gu, '$1$2')
-    // A separator is its own paragraph, never joined into the line above.
-    .replace(SEPARATOR_LINES, '\n---\n');
+    .replace(/(\p{L})-\n(\p{Ll})/gu, '$1$2');
 
   const paragraphs = text.split(/\n[ \t]*\n/);
   return paragraphs
@@ -62,32 +47,27 @@ export function cleanPaste(raw: string): string {
     .join('\n\n');
 }
 
-/** Splits on blank lines, or only on "---" lines when there is one; heading lines (# .. ###) become their own blocks. */
+/** Splits on blank lines; heading lines (# .. ###) become their own blocks. */
 export function splitBlocks(text: string): Block[] {
-  const lines = text.split('\n');
-  const marked = lines.some(isSeparator);
   const blocks: Block[] = [];
-  let buf: string[] = [];
-  const flush = () => {
-    const t = buf
-      .join('\n')
-      .replace(/\n[ \t]*\n(?:[ \t]*\n)*/g, '\n\n')
-      .trim();
-    if (t) blocks.push({ type: 'quote', text: t });
-    buf = [];
-  };
-  for (const line of lines) {
-    const h = line.match(/^(#{1,3})\s+(.+?)\s*$/);
-    if (h) {
-      flush();
-      blocks.push({ type: 'heading', depth: h[1].length, title: h[2] });
-    } else if (marked ? isSeparator(line) : line.trim() === '') {
-      flush();
-    } else {
-      buf.push(line);
+  for (const para of text.split(/\n[ \t]*\n/)) {
+    let buf: string[] = [];
+    const flush = () => {
+      const t = buf.join('\n').trim();
+      if (t) blocks.push({ type: 'quote', text: t });
+      buf = [];
+    };
+    for (const line of para.split('\n')) {
+      const h = line.match(/^(#{1,3})\s+(.+?)\s*$/);
+      if (h) {
+        flush();
+        blocks.push({ type: 'heading', depth: h[1].length, title: h[2] });
+      } else {
+        buf.push(line);
+      }
     }
+    flush();
   }
-  flush();
   return blocks;
 }
 
