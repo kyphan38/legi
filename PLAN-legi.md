@@ -798,6 +798,7 @@ Checklist:
 Sau đó `commit()` dùng `splitBlocks` bản đầy đủ: dòng bắt đầu bằng `#`, `##`, `###` là heading →
 tạo section (cấp theo số `#`, nằm dưới section đang chọn nếu có). Quote sau heading thuộc section đó.
 Hỏi `Split into 6 quotes and 2 sections?` `split · keep as one`.
+Nếu có dòng `---` (hoặc `***`, `* * *`, gạch dài do iPhone đổi) thì chỉ tách ở dòng đó: một quote giữ được nhiều đoạn. Không có `---` thì vẫn tách theo dòng trống như cũ.
 
 **2. ~~Nhập từ Google Play Books~~** - bỏ (chủ app quyết định ngày 2026-10-13). PDF thì copy rồi dán (smart paste).
 

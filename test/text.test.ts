@@ -3,7 +3,7 @@ import { test } from 'node:test';
 
 import { toggleEmph, parseEmph } from '@/lib/emph';
 import { pagesPerBlock, takePageToken } from '@/lib/page-token';
-import { cleanPaste, countBlocks, splitBlocks } from '@/lib/paste';
+import { cleanPaste, countBlocks, dropSeparators, splitBlocks } from '@/lib/paste';
 import { tidy } from '@/lib/typo';
 
 test('tidy: ellipsis, curly quotes, apostrophes, spaces', () => {
@@ -54,6 +54,23 @@ test('splitBlocks: blank line = new quote, single line break stays', () => {
   ]);
 });
 
+test('splitBlocks: a --- line makes only --- split, blank lines stay inside', () => {
+  const blocks = splitBlocks('Một\n\n\nhai\n---\nBa\n\n***\n\n# Chương\nBốn');
+  assert.deepEqual(blocks, [
+    { type: 'quote', text: 'Một\n\nhai' },
+    { type: 'quote', text: 'Ba' },
+    { type: 'heading', depth: 1, title: 'Chương' },
+    { type: 'quote', text: 'Bốn' },
+  ]);
+  const long = String.fromCharCode(0x2014);
+  assert.equal(splitBlocks(`A\n\nB\n${long}-\nC`).length, 2);
+  assert.equal(splitBlocks('A\n- một\nB').length, 1);
+});
+
+test('dropSeparators keeps the paragraphs', () => {
+  assert.equal(dropSeparators('A\n\n---\n\nB\n---'), 'A\n\nB');
+});
+
 test('splitBlocks: # headings', () => {
   const blocks = splitBlocks('# Chương 1\nCâu một\n\n## 1.1 Mục\n\nCâu hai');
   assert.deepEqual(countBlocks(blocks), { quotes: 2, headings: 2 });
@@ -70,6 +87,11 @@ test('cleanPaste keeps a break after a sentence before a capital or bullet', () 
   assert.equal(cleanPaste('Một câu.\nHai câu.'), 'Một câu.\nHai câu.');
   assert.equal(cleanPaste('Danh sách:\n- một\n- hai'), 'Danh sách:\n- một - hai');
   assert.equal(cleanPaste('# Chương\nCâu'), '# Chương\nCâu');
+});
+
+test('cleanPaste puts a separator on its own paragraph', () => {
+  assert.equal(cleanPaste('Một câu\n---\nhai câu'), 'Một câu\n\n---\n\nhai câu');
+  assert.equal(cleanPaste('Đoạn một.\n\nĐoạn hai.\n\n* * *\n\nQuote khác.'), 'Đoạn một.\n\nĐoạn hai.\n\n---\n\nQuote khác.');
 });
 
 test('cleanPaste drops page-number lines and soft hyphens', () => {
