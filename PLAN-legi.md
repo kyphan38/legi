@@ -991,7 +991,9 @@ Checklist P6:
   `en-US-Chirp3-HD-Charon`. Giọng có sẵn trong máy nghe như robot nên chỉ dùng khi mất mạng
   hoặc gọi lỗi (chủ app chọn ngày 2026-10-28). Đổi giọng: sửa `VOICE` trong `src/lib/tts.ts`.
 - Cloud Function `speak` (cùng `guard()` email): nhận 1 quote, trả 1 MP3 (base64). Không key:
-  service account của function gọi Text-to-Speech API (phải bật API này trong project).
+  service account của function gọi Text-to-Speech API, tính tiền vào project TTS dùng chung với
+  skill anki (`TTS_QUOTA_PROJECT`, lấy từ `GOOGLE_TTS_PROJECT`). Service account cần quyền
+  Service Usage Consumer ở project đó.
   Quote dài hơn 3000 byte được tách theo câu, các MP3 nối lại. Không lưu gì, không log chữ.
 - MP3 lưu trên máy (IndexedDB `legi-tts`, khoá = giọng + ngôn ngữ + chữ), nghe lại không gọi
   nữa, chạy cả khi offline. Đăng xuất thì xoá. Đang đọc câu này thì tải sẵn câu sau.
@@ -1006,7 +1008,7 @@ Checklist P6:
 Checklist P7:
 - [ ] Deploy rules → tắt Daily một sách trên iPhone → đổi tên sách vẫn lưu được.
 - [ ] Sách tắt Daily không còn ra ở `another`.
-- [ ] Bật Text-to-Speech API trong project, deploy function `speak`.
+- [ ] Cấp quyền Service Usage Consumer cho service account của function ở project TTS, deploy `speak`.
 - [ ] iPhone: `listen` đọc giọng Charon, tự sang câu tiếp, màn hình không tắt, gạt im lặng vẫn nghe.
 - [ ] Nghe lại một câu khi tắt mạng: vẫn đọc giọng Charon (đã lưu trên máy).
 - [ ] Mac: `listen` → `stop` dừng ngay, `Esc` dừng và về sách.

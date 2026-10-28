@@ -23,6 +23,8 @@ setGlobalOptions({ region: 'asia-southeast1', maxInstances: 2 });
 const GEMINI_API_KEY = defineSecret('GEMINI_API_KEY');
 const ALLOWED_USER_EMAIL = defineString('ALLOWED_USER_EMAIL');
 const GEMINI_MODEL = defineString('GEMINI_MODEL', { default: 'gemini-4-argon' });
+// The Google Cloud project that pays for Text-to-Speech (shared with the anki skill).
+const TTS_QUOTA_PROJECT = defineString('TTS_QUOTA_PROJECT', { default: '' });
 
 let client: GoogleGenAI | null = null;
 let clientKey = '';
@@ -65,13 +67,15 @@ export const transcribe = onCall({ secrets: [GEMINI_API_KEY], timeoutSeconds: 12
   }
 });
 
-// Cloud TTS takes no API key: the function's own service account calls it.
+// Cloud TTS takes no API key: the function's own service account calls it, and
+// TTS_QUOTA_PROJECT pays (that account needs Service Usage Consumer there).
 // In the emulator (no service account) a gcloud token can be passed in instead.
 async function ttsHeaders(): Promise<Record<string, string>> {
+  const quota: Record<string, string> = TTS_QUOTA_PROJECT.value() ? { 'x-goog-user-project': TTS_QUOTA_PROJECT.value() } : {};
   const devToken = process.env.FUNCTIONS_EMULATOR === 'true' ? process.env.TTS_ACCESS_TOKEN : undefined;
-  if (devToken) return { Authorization: `Bearer ${devToken}`, 'x-goog-user-project': process.env.TTS_QUOTA_PROJECT ?? '' };
+  if (devToken) return { Authorization: `Bearer ${devToken}`, ...quota };
   const { access_token } = await applicationDefault().getAccessToken();
-  return { Authorization: `Bearer ${access_token}` };
+  return { Authorization: `Bearer ${access_token}`, ...quota };
 }
 
 /** A quote → MP3 (base64), Chirp 3 HD voice. Nothing is kept. */

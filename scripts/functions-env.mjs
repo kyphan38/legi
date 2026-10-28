@@ -3,7 +3,7 @@
 //
 //   npm run fn:env
 //
-// functions/.env           ALLOWED_USER_EMAIL + GEMINI_MODEL, deploy and emulator
+// functions/.env           ALLOWED_USER_EMAIL, GEMINI_MODEL, TTS_QUOTA_PROJECT: deploy and emulator
 // functions/.secret.local  emulator only: GEMINI_API_KEY
 //
 // The emulator uses the same email as `npm run rules -- --emu`, so the fake
@@ -37,6 +37,8 @@ if (!email) {
 const lines = [`ALLOWED_USER_EMAIL=${email}`];
 // Always written: non-interactive deploy fails on a param with no value, even with a default.
 lines.push(`GEMINI_MODEL=${(env.GEMINI_MODEL ?? '').trim() || 'gemini-4-argon'}`);
+// Text-to-Speech is billed to the same project as the anki skill (GOOGLE_TTS_PROJECT).
+lines.push(`TTS_QUOTA_PROJECT=${(env.TTS_QUOTA_PROJECT ?? env.GOOGLE_TTS_PROJECT ?? '').trim()}`);
 writeFileSync('functions/.env', lines.join('\n') + '\n');
 console.log('functions/.env written');
 
