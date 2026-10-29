@@ -6,7 +6,7 @@
 // Keys (all wait for the IME: Telex/VNI must finish a letter first):
 //   Enter on an empty last line → save · ⌘/Ctrl+Enter → save anywhere
 //   Tab → page field · Esc → leave (the draft stays) · ⌘B → **emphasis**
-// A blank line splits text into several quotes (asked first).
+// Text with blank lines saves as one quote; tap "split" to save one per block.
 // ============================================================
 
 import Link from 'next/link';
@@ -45,9 +45,6 @@ type Props = {
   extra?: React.ReactNode;
 };
 
-// `text` and `page` are for "save as one"; `pages` gives each block its own page.
-type Split = { blocks: Block[]; pages: (number | null)[]; text: string; page: number | null };
-
 function ctxKey(bookId: string) {
   return `legi.ctx.${bookId}`;
 }
@@ -64,7 +61,7 @@ const Composer = forwardRef<ComposerHandle, Props>(function Composer({ uid, book
   // undefined in storage = never chosen; '' = "no chapter" on purpose.
   const [ctx, setCtx] = useState<string | null>(() => (book ? readJson<string>(ctxKey(book.id)) : null));
   const [picker, setPicker] = useState(false);
-  const [split, setSplit] = useState<Split | null>(null);
+  const [split, setSplit] = useState(false);
   const [broken, setBroken] = useState(false);
   const [pasted, setPasted] = useState(false);
   const [similar, setSimilar] = useState<string | null>(null);
@@ -119,7 +116,7 @@ const Composer = forwardRef<ComposerHandle, Props>(function Composer({ uid, book
     setText('');
     setNote('');
     setShowNote(false);
-    setSplit(null);
+    setSplit(false);
     setBroken(false);
     setPasted(false);
     setSimilar(null);
@@ -187,22 +184,14 @@ const Composer = forwardRef<ComposerHandle, Props>(function Composer({ uid, book
     // "p.52" typed at the end of the text is a new page too.
     if (token.page) setManual(false);
     const base = token.page ? (sectionForPage(sections, token.page) ?? storedCtx) : validCtx;
-    if (quotes > 1 || headings > 0) {
+    if (split && (quotes > 1 || headings > 0)) {
       // Many quotes: each one reads its own trailing page, not just the last one.
       const field = Number(page) > 0 ? Math.min(20000, Math.floor(Number(page))) : null;
       const per = pagesPerBlock(splitBlocks(tidy(text.trimEnd())), field);
-      setSplit({ blocks: per.blocks, pages: per.pages, text: clean, page: pageNum });
-      const last = per.pages.filter((p) => p !== null).at(-1);
-      if (last && last !== field) setPage(String(last));
+      write(per.blocks, pageNum, cleanNote, validCtx, per.pages);
       return;
     }
     write([{ type: 'quote', text: clean }], pageNum, cleanNote, base);
-  };
-
-  const confirmSplit = (asOne: boolean) => {
-    if (!split) return;
-    if (asOne) write([{ type: 'quote', text: split.text }], split.page, tidy(note));
-    else write(split.blocks, split.page, tidy(note), validCtx, split.pages);
   };
 
   const onKey = (e: KeyboardEvent<HTMLTextAreaElement>) => {
@@ -261,7 +250,6 @@ const Composer = forwardRef<ComposerHandle, Props>(function Composer({ uid, book
     const next = before + gap + spoken + value.slice(at);
     const caret = (before + gap + spoken).length;
     setText(next);
-    setSplit(null);
     saveDraft({ text: next });
     requestAnimationFrame(() => {
       el?.focus();
@@ -286,7 +274,8 @@ const Composer = forwardRef<ComposerHandle, Props>(function Composer({ uid, book
 
   const similarQuote = similar ? liveQuotes.find((q) => q.id === similar) : null;
   const similarBook = similarQuote?.bookId ? books.get(similarQuote.bookId) : null;
-  const counts = split ? countBlocks(split.blocks) : null;
+  const counts = useMemo(() => countBlocks(splitBlocks(text.trim())), [text]);
+  const canSplit = counts.quotes > 1 || counts.headings > 0;
   const canSave = text.trim().length > 0;
   // Visible characters ("ệ" = 1), without the ** of emphasis.
   const chars = graphemes(text.replace(/\*\*/g, '')).length;
@@ -306,7 +295,6 @@ const Composer = forwardRef<ComposerHandle, Props>(function Composer({ uid, book
                 setPasted(false);
                 setBroken(false);
               }
-              setSplit(null);
               saveDraft({ text: v });
             }}
             onKeyDown={onKey}
@@ -338,22 +326,22 @@ const Composer = forwardRef<ComposerHandle, Props>(function Composer({ uid, book
           )}
         </div>
 
-        {split && counts && (
-          <p className="fade-in flex flex-wrap items-baseline gap-x-3 py-1 text-[13px] text-muted">
-            <span>
-              Split into {counts.quotes} {counts.quotes === 1 ? 'quote' : 'quotes'}
-              {counts.headings > 0 && ` and ${counts.headings} ${counts.headings === 1 ? 'section' : 'sections'}`}?
-            </span>
-            <button type="button" onClick={() => confirmSplit(false)} className="text-ink">
-              split
-            </button>
-            <button type="button" onClick={() => confirmSplit(true)} className="text-faint hover:text-ink">
-              keep as one
+        {canSplit && (
+          <p className="fade-in py-1 text-[13px]">
+            <button
+              type="button"
+              onPointerDown={(e) => e.preventDefault()}
+              onClick={() => setSplit((v) => !v)}
+              aria-pressed={split}
+              className={split ? 'text-ink' : 'text-faint hover:text-muted'}
+            >
+              {split ? '✓ ' : ''}split into {counts.quotes} {counts.quotes === 1 ? 'quote' : 'quotes'}
+              {counts.headings > 0 && ` and ${counts.headings} ${counts.headings === 1 ? 'section' : 'sections'}`}
             </button>
           </p>
         )}
-        {!split && broken && <p className="py-1 text-[13px] text-muted">Text looks broken. Try a photo.</p>}
-        {!split && similarQuote && (
+        {broken && <p className="py-1 text-[13px] text-muted">Text looks broken. Try a photo.</p>}
+        {similarQuote && (
           <p className="fade-in flex flex-wrap items-baseline gap-x-3 py-1 text-[13px] text-muted">
             <span className="min-w-0 truncate">
               Similar in {similarBook?.title ?? 'Inbox'}
