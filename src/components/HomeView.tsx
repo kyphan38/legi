@@ -16,6 +16,7 @@ import { doc, onSnapshot } from 'firebase/firestore';
 
 import { useUid } from '@/components/AuthGate';
 import { LAST_BOOK_KEY } from '@/components/BookView';
+import TopBar from '@/components/TopBar';
 import Typewriter from '@/components/Typewriter';
 import { useLibrary } from '@/contexts/LibraryContext';
 import { mulberry32, onThisDay, pickAnother, pickDaily } from '@/lib/daily';
@@ -145,8 +146,9 @@ function Daily({ day, continueTo }: { day: string; continueTo: string }) {
   const pastBook = past?.bookId ? books.get(past.bookId) : null;
 
   return (
-    <main className="paper flex min-h-dvh flex-col justify-center pb-[10dvh]">
-      <div className="fade-in">
+    <main className="paper flex min-h-dvh flex-col">
+      <TopBar current="daily" />
+      <div className="fade-in my-auto pb-[10dvh]">
         <p className="text-[calc(var(--quote-size)+2px)] leading-[1.75] whitespace-pre-wrap text-ink">
           <Typewriter key={quote.id} text={quote.text} />
         </p>
