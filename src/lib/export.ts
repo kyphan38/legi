@@ -7,10 +7,13 @@ import { sortQuotes } from '@/lib/order';
 import { viCollator } from '@/lib/vi';
 import type { BookRow, QuoteRow } from '@/types/legi';
 
+// Same format as a legi-quotes file, so an export pastes back in
+// (splitMarked in paste.ts reads it): each quote starts with "--- p52",
+// book info sits on "> " lines.
 function quoteBlock(q: QuoteRow): string {
-  const page = q.page !== null ? ` (p. ${q.page})` : '';
+  const marker = q.page !== null ? `--- p${q.page}` : '---';
   const lead = q.kind === 'thought' ? 'Thought: ' : q.kind === 'question' ? 'Question: ' : '';
-  let out = `${lead}${q.text}${page}`;
+  let out = `${marker}\n${lead}${q.text}`;
   if (q.note.trim()) out += `\n\nNote: ${q.note.trim()}`;
   return out;
 }
@@ -20,7 +23,7 @@ export function bookToMarkdown(book: BookRow, quotes: QuoteRow[], level = 1): st
   const mine = sortQuotes(quotes.filter((q) => q.bookId === book.id && q.deletedAt === null));
   const known = new Set(book.sections.map((s) => s.id));
   const parts: string[] = [`${'#'.repeat(level)} ${book.title}`];
-  if (book.author) parts.push(book.author);
+  if (book.author) parts.push(`> ${book.author}`);
   if (book.takeaway) parts.push(`> What stays with you: ${book.takeaway}`);
   const top = mine.filter((q) => !q.sectionId || !known.has(q.sectionId));
   top.forEach((q) => parts.push(quoteBlock(q)));

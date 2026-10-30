@@ -184,9 +184,9 @@ const Composer = forwardRef<ComposerHandle, Props>(function Composer({ uid, book
       inputs.push({
         bookId: book?.id ?? null,
         sectionId: book ? sectionId : null,
-        kind,
+        kind: b.kind ?? kind,
         text: b.text,
-        note: '',
+        note: b.note ?? '',
         page: quotePage,
         source: pasted ? 'paste' : 'typed',
       });

@@ -80,7 +80,8 @@ test('splitMarked: --- p13 starts a quote, blank lines stay inside', () => {
     { type: 'heading', depth: 2, title: 'Mục' },
     { type: 'quote', text: 'Câu ba' },
   ]);
-  assert.deepEqual(pages, [null, 13, 14, null, 14]);
+  // A bare --- takes the page field, not the page before it.
+  assert.deepEqual(pages, [null, 13, 14, null, 5]);
   assert.deepEqual(splitMarked('---\nMột', 7).pages, [7]);
   assert.equal(isMarked('Một\n\nHai - ba'), false);
   assert.equal(isMarked('Một\n----\nHai'), false);

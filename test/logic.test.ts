@@ -5,6 +5,7 @@ import { onThisDay, pickAnother, pickDaily, revisitBoost } from '@/lib/daily';
 import { addDays, dayOf } from '@/lib/day';
 import { dice, findSimilar, indexText, trigrams } from '@/lib/dup';
 import { bookToMarkdown, toJson, toMarkdown } from '@/lib/export';
+import { splitMarked } from '@/lib/paste';
 import { compareQuotes, orderBetween, orderForStep, sortQuotes } from '@/lib/order';
 import { mergeFields, splitText } from '@/lib/quote-ops';
 import { markRanges, searchAll } from '@/lib/search';
@@ -245,14 +246,47 @@ test('export: markdown with sections, notes, thoughts; json skips trash', () => 
   ];
   assert.equal(
     bookToMarkdown(b, qs),
-    '# Atomic Habits\n\nJames Clear\n\n> What stays with you: Hệ thống hơn mục tiêu.\n\nĐầu sách\n\n## Chương 1\n\nThought: Suy nghĩ\n\n### 1.1 Mục\n\nCâu hay (p. 12)\n\nNote: ghi chú\n',
+    '# Atomic Habits\n\n> James Clear\n\n> What stays with you: Hệ thống hơn mục tiêu.\n\n---\nĐầu sách\n\n## Chương 1\n\n---\nThought: Suy nghĩ\n\n### 1.1 Mục\n\n--- p12\nCâu hay\n\nNote: ghi chú\n',
   );
   const inbox = quote('i', { bookId: null, text: 'Trong inbox' });
-  assert.ok(toMarkdown([b], [...qs, inbox]).includes('# Inbox\n\nTrong inbox'));
+  assert.ok(toMarkdown([b], [...qs, inbox]).includes('# Inbox\n\n---\nTrong inbox'));
   const json = JSON.parse(toJson([b, book({ id: 'gone', deletedAt: 1 })], qs, 5));
   assert.equal(json.app, 'legi');
   assert.equal(json.books.length, 1);
   assert.equal(json.quotes.length, 3);
+});
+
+test('export pastes back: same sections, text, pages, notes and kinds', () => {
+  const b = book({
+    title: 'Mossad',
+    author: 'Michael Bar-Zohar',
+    takeaway: 'Kiên nhẫn.',
+    sections: [
+      { id: 's1', title: 'Chương 1', parentId: null, order: 1 },
+      { id: 's2', title: 'Phá hoại', parentId: 's1', order: 1 },
+      { id: 's3', title: 'Sâu', parentId: 's2', order: 1 },
+      { id: 's4', title: 'Sâu hơn', parentId: 's3', order: 1 },
+    ],
+  });
+  const qs = [
+    quote('a', { sectionId: null, text: 'Không trang' }),
+    quote('b', { sectionId: 's1', text: 'Đoạn một:\n\nĐoạn hai\ndòng ba', page: 13, note: 'ghi chú\n\nhai đoạn' }),
+    quote('c', { sectionId: 's2', kind: 'question', text: '> trích dẫn\n- gạch đầu dòng', page: 14 }),
+    quote('d', { sectionId: 's4', kind: 'thought', text: 'Rất sâu', page: null }),
+  ];
+  const { blocks, pages } = splitMarked(bookToMarkdown(b, qs), null);
+  assert.deepEqual(blocks, [
+    { type: 'heading', depth: 1, title: 'Mossad' },
+    { type: 'quote', text: 'Không trang' },
+    { type: 'heading', depth: 2, title: 'Chương 1' },
+    { type: 'quote', text: 'Đoạn một:\n\nĐoạn hai\ndòng ba', note: 'ghi chú\n\nhai đoạn' },
+    { type: 'heading', depth: 3, title: 'Phá hoại' },
+    { type: 'quote', text: '> trích dẫn\n- gạch đầu dòng', kind: 'question' },
+    { type: 'heading', depth: 4, title: 'Sâu' },
+    { type: 'heading', depth: 5, title: 'Sâu hơn' },
+    { type: 'quote', text: 'Rất sâu', kind: 'thought' },
+  ]);
+  assert.deepEqual(pages, [null, null, null, 13, null, 14, null, null, null]);
 });
 
 test('cover shade is stable and in range', () => {
