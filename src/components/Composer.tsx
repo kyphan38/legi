@@ -26,12 +26,12 @@ import { addSection, buildTree, flatten, headingParent, pathOf, removeSection, s
 import { pagesPerBlock, takePageToken } from '@/lib/page-token';
 import { isSource } from '@/lib/source';
 import { cleanPaste, countBlocks, dropMarkers, isMarked, splitBlocks, splitMarked, type Block } from '@/lib/paste';
-import { createQuotes, trashQuotes, updateBook, type QuoteInput } from '@/lib/repo';
+import { createQuotes, placeQuotes, trashQuotes, updateBook, type QuoteInput } from '@/lib/repo';
 import { readJson, writeJson } from '@/lib/store';
 import { tidy } from '@/lib/typo';
 import { pushUndo } from '@/lib/undo';
-import { graphemes, looksBroken } from '@/lib/vi';
-import type { BookRow, QuoteKind, Section } from '@/types/legi';
+import { dupKey, graphemes, looksBroken } from '@/lib/vi';
+import type { BookRow, QuoteKind, QuoteRow, Section } from '@/types/legi';
 
 export type ComposerHandle = { focus: () => void };
 
@@ -149,6 +149,18 @@ const Composer = forwardRef<ComposerHandle, Props>(function Composer({ uid, book
     // New sections start on the page of the first quote saved under them.
     let unpaged: string[] = [];
     const inputs: QuoteInput[] = [];
+    // A paste of many quotes that holds a quote this book already has moves
+    // that quote (with its star, note and history) instead of adding a copy.
+    // This is how an old chapter gets new ## sections.
+    const moves: { quote: QuoteRow; sectionId: string | null }[] = [];
+    const have = new Map<string, QuoteRow[]>();
+    if (book && blocks.length > 1) {
+      for (const q of liveQuotes) {
+        if (q.bookId !== book.id) continue;
+        const key = dupKey(q.text);
+        have.set(key, [...(have.get(key) ?? []), q]);
+      }
+    }
     for (const [i, b] of blocks.entries()) {
       if (b.type === 'heading') {
         if (!book) continue;
@@ -163,6 +175,11 @@ const Composer = forwardRef<ComposerHandle, Props>(function Composer({ uid, book
       if (quotePage && unpaged.length > 0) {
         for (const id of unpaged) secs = setStartPage(secs, id, quotePage);
         unpaged = [];
+      }
+      const old = have.get(dupKey(b.text))?.shift();
+      if (old) {
+        moves.push({ quote: old, sectionId });
+        continue;
       }
       inputs.push({
         bookId: book?.id ?? null,
@@ -185,12 +202,15 @@ const Composer = forwardRef<ComposerHandle, Props>(function Composer({ uid, book
       if (sectionId !== validCtx) pickCtx(sectionId);
     }
     const ids = createQuotes(uid, inputs);
+    placeQuotes(uid, moves, { undo: false });
     const added = secs.filter((s) => !sections.some((o) => o.id === s.id)).map((s) => s.id);
     // A paste of many quotes or sections can be taken back in one step.
-    if (ids.length > 1 || added.length > 0) {
+    if (ids.length > 1 || added.length > 0 || moves.length > 0) {
       const oldPage = book?.currentPage ?? null;
-      pushUndo(`Saved ${ids.length} ${ids.length === 1 ? 'quote' : 'quotes'}`, () => {
+      const label = [ids.length > 0 && `Saved ${ids.length}`, moves.length > 0 && `moved ${moves.length}`].filter(Boolean).join(', ');
+      pushUndo(label.charAt(0).toUpperCase() + label.slice(1), () => {
         trashQuotes(uid, ids, { undo: false });
+        placeQuotes(uid, moves.map((m) => ({ quote: { ...m.quote, sectionId: m.sectionId }, sectionId: m.quote.sectionId })), { undo: false });
         const now = bookRef.current;
         if (!now) return;
         const patch: Partial<BookRow> = {};
