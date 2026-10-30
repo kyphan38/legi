@@ -87,6 +87,16 @@ export function addSection(
   return { sections: [...sections, section], id };
 }
 
+/**
+ * Where a pasted heading goes: under the last open heading with fewer #, or
+ * under `base` (the section the user has open). `open` is the list of open
+ * headings, kept up to date across calls.
+ */
+export function headingParent(open: { depth: number; id: string }[], depth: number, base: string | null): string | null {
+  while (open.length > 0 && open[open.length - 1].depth >= depth) open.pop();
+  return open.at(-1)?.id ?? base;
+}
+
 /** A new sibling right after `afterId` (the next part of the book), before any later sibling. */
 export function addSectionAfter(sections: Section[], title: string, afterId: string, id: string = newId()): { sections: Section[]; id: string } {
   const after = sections.find((s) => s.id === afterId);

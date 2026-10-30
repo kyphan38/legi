@@ -22,7 +22,7 @@ import { useLibrary } from '@/contexts/LibraryContext';
 import { clearDraft, readDraft, writeDraft } from '@/lib/draft';
 import { findSimilar, MIN_CHARS } from '@/lib/dup';
 import { toggleEmph } from '@/lib/emph';
-import { addSection, buildTree, flatten, pathOf, sectionForPage } from '@/lib/outline';
+import { addSection, buildTree, flatten, headingParent, pathOf, sectionForPage, setStartPage } from '@/lib/outline';
 import { pagesPerBlock, takePageToken } from '@/lib/page-token';
 import { isSource } from '@/lib/source';
 import { cleanPaste, countBlocks, dropMarkers, isMarked, splitBlocks, splitMarked, type Block } from '@/lib/paste';
@@ -137,19 +137,26 @@ const Composer = forwardRef<ComposerHandle, Props>(function Composer({ uid, book
   ) => {
     let secs: Section[] = sections;
     let sectionId = base;
-    // Pasted headings nest under the chosen section: # = child of it, ## = child of the last #.
-    const stack: (string | null)[] = [base];
+    // Pasted headings nest under the chosen section by their # count, so a
+    // paste that starts at ## keeps all its ## side by side.
+    const open: { depth: number; id: string }[] = [];
+    // New sections start on the page of the first quote saved under them.
+    let unpaged: string[] = [];
     const inputs: QuoteInput[] = [];
     for (const [i, b] of blocks.entries()) {
       if (b.type === 'heading') {
         if (!book) continue;
-        const depth = Math.min(b.depth, stack.length);
-        const res = addSection(secs, b.title, stack[depth - 1] ?? null);
+        const res = addSection(secs, b.title, headingParent(open, b.depth, base));
         secs = res.sections;
-        stack.length = depth;
-        stack.push(res.id);
+        open.push({ depth: b.depth, id: res.id });
+        unpaged.push(res.id);
         sectionId = res.id;
         continue;
+      }
+      const quotePage = pages ? pages[i] : pageNum;
+      if (quotePage && unpaged.length > 0) {
+        for (const id of unpaged) secs = setStartPage(secs, id, quotePage);
+        unpaged = [];
       }
       inputs.push({
         bookId: book?.id ?? null,
@@ -157,7 +164,7 @@ const Composer = forwardRef<ComposerHandle, Props>(function Composer({ uid, book
         kind,
         text: b.text,
         note: '',
-        page: pages ? pages[i] : pageNum,
+        page: quotePage,
         source: pasted ? 'paste' : 'typed',
       });
     }

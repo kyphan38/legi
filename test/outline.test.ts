@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 
-import { addSection, addSectionAfter, buildTree, flatten, indent, moveDown, moveUp, outdent, misplacedByPage, parseToc, pathOf, removeSection, sectionForPage, setStartPage, subtreeIds } from '@/lib/outline';
+import { addSection, addSectionAfter, buildTree, flatten, headingParent, indent, moveDown, moveUp, outdent, misplacedByPage, parseToc, pathOf, removeSection, sectionForPage, setStartPage, subtreeIds } from '@/lib/outline';
 import type { Section } from '@/types/legi';
 
 const S = (id: string, parentId: string | null, order: number, title = id): Section => ({ id, title, parentId, order });
@@ -108,4 +108,14 @@ test('misplacedByPage: only quotes with a page that points elsewhere', () => {
     misplacedByPage(s, quotes).map((m) => `${m.quote.id}>${m.sectionId}`),
     ['q1>b', 'q4>a'],
   );
+});
+
+test('headingParent: a paste that starts at ## keeps its ## side by side', () => {
+  const open: { depth: number; id: string }[] = [];
+  const parents: (string | null)[] = [];
+  for (const [depth, id] of [[2, 'a'], [2, 'b'], [3, 'b1'], [2, 'c'], [1, 'd'], [2, 'd1']] as const) {
+    parents.push(headingParent(open, depth, 'base'));
+    open.push({ depth, id });
+  }
+  assert.deepEqual(parents, ['base', 'base', 'b', 'base', 'base', 'd']);
 });
