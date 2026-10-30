@@ -22,13 +22,14 @@ import { useLibrary } from '@/contexts/LibraryContext';
 import { clearDraft, readDraft, writeDraft } from '@/lib/draft';
 import { findSimilar, MIN_CHARS } from '@/lib/dup';
 import { toggleEmph } from '@/lib/emph';
-import { addSection, buildTree, flatten, headingParent, pathOf, sectionForPage, setStartPage } from '@/lib/outline';
+import { addSection, buildTree, flatten, headingParent, pathOf, removeSection, sectionForPage, setStartPage } from '@/lib/outline';
 import { pagesPerBlock, takePageToken } from '@/lib/page-token';
 import { isSource } from '@/lib/source';
 import { cleanPaste, countBlocks, dropMarkers, isMarked, splitBlocks, splitMarked, type Block } from '@/lib/paste';
-import { createQuotes, updateBook, type QuoteInput } from '@/lib/repo';
+import { createQuotes, trashQuotes, updateBook, type QuoteInput } from '@/lib/repo';
 import { readJson, writeJson } from '@/lib/store';
 import { tidy } from '@/lib/typo';
+import { pushUndo } from '@/lib/undo';
 import { graphemes, looksBroken } from '@/lib/vi';
 import type { BookRow, QuoteKind, Section } from '@/types/legi';
 
@@ -71,6 +72,11 @@ const Composer = forwardRef<ComposerHandle, Props>(function Composer({ uid, book
   const textRef = useRef<HTMLTextAreaElement>(null);
   const pageRef = useRef<HTMLInputElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
+  // An undo runs later, so it reads the book as it is then, not as it was at save time.
+  const bookRef = useRef(book);
+  useEffect(() => {
+    bookRef.current = book;
+  }, [book]);
   const noteRef = useRef<HTMLTextAreaElement>(null);
 
   useImperativeHandle(ref, () => ({ focus: () => textRef.current?.focus() }), []);
@@ -179,6 +185,20 @@ const Composer = forwardRef<ComposerHandle, Props>(function Composer({ uid, book
       if (sectionId !== validCtx) pickCtx(sectionId);
     }
     const ids = createQuotes(uid, inputs);
+    const added = secs.filter((s) => !sections.some((o) => o.id === s.id)).map((s) => s.id);
+    // A paste of many quotes or sections can be taken back in one step.
+    if (ids.length > 1 || added.length > 0) {
+      const oldPage = book?.currentPage ?? null;
+      pushUndo(`Saved ${ids.length} ${ids.length === 1 ? 'quote' : 'quotes'}`, () => {
+        trashQuotes(uid, ids, { undo: false });
+        const now = bookRef.current;
+        if (!now) return;
+        const patch: Partial<BookRow> = {};
+        if (added.length > 0) patch.sections = added.reduce(removeSection, now.sections ?? []);
+        if (top && now.currentPage === top && oldPage !== top) patch.currentPage = oldPage;
+        if (Object.keys(patch).length) updateBook(uid, now.id, patch);
+      });
+    }
     reset(top);
     onSaved?.(ids);
   };
