@@ -3,7 +3,7 @@ import { test } from 'node:test';
 
 import { toggleEmph, parseEmph } from '@/lib/emph';
 import { pagesPerBlock, takePageToken } from '@/lib/page-token';
-import { cleanPaste, countBlocks, splitBlocks } from '@/lib/paste';
+import { cleanPaste, countBlocks, dropMarkers, isMarked, splitBlocks, splitMarked } from '@/lib/paste';
 import { tidy } from '@/lib/typo';
 
 test('tidy: ellipsis, curly quotes, apostrophes, spaces', () => {
@@ -52,6 +52,46 @@ test('splitBlocks: blank line = new quote, single line break stays', () => {
     { type: 'quote', text: 'Một\nhai' },
     { type: 'quote', text: 'Ba' },
   ]);
+});
+
+test('splitMarked: --- p13 starts a quote, blank lines stay inside', () => {
+  const text = [
+    '# Chương 1',
+    '--- p13',
+    'Meir Dagan trong các cuộc chiến:',
+    '',
+    'Yom Kippur (1973): vượt kênh Suez',
+    '',
+    '',
+    'Lebanon (1982): tiến vào Beirut',
+    '',
+    '--- p14',
+    'Câu hai',
+    '## Mục',
+    '---',
+    'Câu ba',
+  ].join('\n');
+  assert.equal(isMarked(text), true);
+  const { blocks, pages } = splitMarked(text, 5);
+  assert.deepEqual(blocks, [
+    { type: 'heading', depth: 1, title: 'Chương 1' },
+    { type: 'quote', text: 'Meir Dagan trong các cuộc chiến:\n\nYom Kippur (1973): vượt kênh Suez\n\nLebanon (1982): tiến vào Beirut' },
+    { type: 'quote', text: 'Câu hai' },
+    { type: 'heading', depth: 2, title: 'Mục' },
+    { type: 'quote', text: 'Câu ba' },
+  ]);
+  assert.deepEqual(pages, [null, 13, 14, null, 14]);
+  assert.deepEqual(splitMarked('---\nMột', 7).pages, [7]);
+  assert.equal(isMarked('Một\n\nHai - ba'), false);
+  assert.equal(isMarked('Một\n----\nHai'), false);
+});
+
+test('dropMarkers keeps the paragraphs', () => {
+  assert.equal(dropMarkers('--- p1\nA\n\n--- p2\n\nB'), 'A\n\nB');
+});
+
+test('cleanPaste keeps --- p13 on its own line', () => {
+  assert.equal(cleanPaste('--- p13\nmột câu\n--- p14\nhai'), '--- p13\nmột câu\n--- p14\nhai');
 });
 
 test('splitBlocks: # headings', () => {

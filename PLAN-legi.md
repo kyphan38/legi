@@ -800,6 +800,7 @@ Checklist:
 Sau đó `commit()` dùng `splitBlocks` bản đầy đủ: dòng bắt đầu bằng `#`, `##`, `###` là heading →
 tạo section (cấp theo số `#`, nằm dưới section đang chọn nếu có). Quote sau heading thuộc section đó.
 Hỏi `Split into 6 quotes and 2 sections?` `split · keep as one`.
+File từ legi-quotes (`--- p13` ở đầu mỗi quote): chỉ tách ở dòng `---`, dòng trống giữ thành đoạn trong quote, số trang lấy từ dòng `---`. Nút `file` trong ô nhập đọc file .txt/.md vào ô như khi dán.
 
 **2. ~~Nhập từ Google Play Books~~** - bỏ (chủ app quyết định ngày 2026-10-13). PDF thì copy rồi dán (smart paste).
 

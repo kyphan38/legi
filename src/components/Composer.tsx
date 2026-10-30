@@ -7,6 +7,7 @@
 //   Enter on an empty last line → save · ⌘/Ctrl+Enter → save anywhere
 //   Tab → page field · Esc → leave (the draft stays) · ⌘B → **emphasis**
 // Text with blank lines saves as one quote; tap "split" to save one per block.
+// Text with "--- p13" lines (a legi-quotes file) splits on those by default.
 // ============================================================
 
 import Link from 'next/link';
@@ -24,7 +25,7 @@ import { toggleEmph } from '@/lib/emph';
 import { addSection, buildTree, flatten, pathOf, sectionForPage } from '@/lib/outline';
 import { pagesPerBlock, takePageToken } from '@/lib/page-token';
 import { isSource } from '@/lib/source';
-import { cleanPaste, countBlocks, splitBlocks, type Block } from '@/lib/paste';
+import { cleanPaste, countBlocks, dropMarkers, isMarked, splitBlocks, splitMarked, type Block } from '@/lib/paste';
 import { createQuotes, updateBook, type QuoteInput } from '@/lib/repo';
 import { readJson, writeJson } from '@/lib/store';
 import { tidy } from '@/lib/typo';
@@ -61,13 +62,15 @@ const Composer = forwardRef<ComposerHandle, Props>(function Composer({ uid, book
   // undefined in storage = never chosen; '' = "no chapter" on purpose.
   const [ctx, setCtx] = useState<string | null>(() => (book ? readJson<string>(ctxKey(book.id)) : null));
   const [picker, setPicker] = useState(false);
-  const [split, setSplit] = useState(false);
+  // null = not chosen: marked text splits, other text stays one quote.
+  const [split, setSplit] = useState<boolean | null>(null);
   const [broken, setBroken] = useState(false);
   const [pasted, setPasted] = useState(false);
   const [similar, setSimilar] = useState<string | null>(null);
   const [hasSelection, setHasSelection] = useState(false);
   const textRef = useRef<HTMLTextAreaElement>(null);
   const pageRef = useRef<HTMLInputElement>(null);
+  const fileRef = useRef<HTMLInputElement>(null);
   const noteRef = useRef<HTMLTextAreaElement>(null);
 
   useImperativeHandle(ref, () => ({ focus: () => textRef.current?.focus() }), []);
@@ -116,7 +119,7 @@ const Composer = forwardRef<ComposerHandle, Props>(function Composer({ uid, book
     setText('');
     setNote('');
     setShowNote(false);
-    setSplit(false);
+    setSplit(null);
     setBroken(false);
     setPasted(false);
     setSimilar(null);
@@ -174,6 +177,17 @@ const Composer = forwardRef<ComposerHandle, Props>(function Composer({ uid, book
   };
 
   const commit = () => {
+    const field = Number(page) > 0 ? Math.min(20000, Math.floor(Number(page))) : null;
+    if (marked) {
+      const all = tidy(text.trimEnd());
+      if (splitOn) {
+        const per = splitMarked(all, field);
+        if (per.blocks.length > 0) write(per.blocks, field, tidy(note), validCtx, per.pages);
+      } else if (dropMarkers(all)) {
+        write([{ type: 'quote', text: dropMarkers(all) }], splitMarked(all, field).pages.find((p) => p !== null) ?? field, tidy(note));
+      }
+      return;
+    }
     const token = takePageToken(text.trimEnd());
     const pageNum = token.page ?? (Number(page) > 0 ? Math.min(20000, Math.floor(Number(page))) : null);
     const clean = tidy(token.text);
@@ -184,9 +198,8 @@ const Composer = forwardRef<ComposerHandle, Props>(function Composer({ uid, book
     // "p.52" typed at the end of the text is a new page too.
     if (token.page) setManual(false);
     const base = token.page ? (sectionForPage(sections, token.page) ?? storedCtx) : validCtx;
-    if (split && (quotes > 1 || headings > 0)) {
+    if (splitOn && (quotes > 1 || headings > 0)) {
       // Many quotes: each one reads its own trailing page, not just the last one.
-      const field = Number(page) > 0 ? Math.min(20000, Math.floor(Number(page))) : null;
       const per = pagesPerBlock(splitBlocks(tidy(text.trimEnd())), field);
       write(per.blocks, pageNum, cleanNote, validCtx, per.pages);
       return;
@@ -257,6 +270,19 @@ const Composer = forwardRef<ComposerHandle, Props>(function Composer({ uid, book
     });
   };
 
+  // A .txt or .md file goes into the box like a paste, after any text already there.
+  const onFile = async (file: File | undefined) => {
+    if (fileRef.current) fileRef.current.value = '';
+    if (!file) return;
+    const raw = (await file.text()).replace(/\r\n?/g, '\n').trim();
+    if (!raw) return;
+    const next = text.trim() ? `${text.trimEnd()}\n\n${raw}` : raw;
+    setText(next);
+    setPasted(true);
+    setBroken(looksBroken(raw));
+    saveDraft({ text: next });
+  };
+
   const onPaste = (e: ClipboardEvent<HTMLTextAreaElement>) => {
     const raw = e.clipboardData.getData('text/plain');
     if (!raw) return;
@@ -274,7 +300,9 @@ const Composer = forwardRef<ComposerHandle, Props>(function Composer({ uid, book
 
   const similarQuote = similar ? liveQuotes.find((q) => q.id === similar) : null;
   const similarBook = similarQuote?.bookId ? books.get(similarQuote.bookId) : null;
-  const counts = useMemo(() => countBlocks(splitBlocks(text.trim())), [text]);
+  const marked = useMemo(() => isMarked(text), [text]);
+  const splitOn = split ?? marked;
+  const counts = useMemo(() => countBlocks(marked ? splitMarked(text.trim(), null).blocks : splitBlocks(text.trim())), [text, marked]);
   const canSplit = counts.quotes > 1 || counts.headings > 0;
   const canSave = text.trim().length > 0;
   // Visible characters ("ệ" = 1), without the ** of emphasis.
@@ -331,11 +359,11 @@ const Composer = forwardRef<ComposerHandle, Props>(function Composer({ uid, book
             <button
               type="button"
               onPointerDown={(e) => e.preventDefault()}
-              onClick={() => setSplit((v) => !v)}
-              aria-pressed={split}
-              className={split ? 'text-ink' : 'text-faint hover:text-muted'}
+              onClick={() => setSplit(!splitOn)}
+              aria-pressed={splitOn}
+              className={splitOn ? 'text-ink' : 'text-faint hover:text-muted'}
             >
-              {split ? '✓ ' : ''}split into {counts.quotes} {counts.quotes === 1 ? 'quote' : 'quotes'}
+              {splitOn ? '✓ ' : ''}split into {counts.quotes} {counts.quotes === 1 ? 'quote' : 'quotes'}
               {counts.headings > 0 && ` and ${counts.headings} ${counts.headings === 1 ? 'section' : 'sections'}`}
             </button>
           </p>
@@ -396,6 +424,10 @@ const Composer = forwardRef<ComposerHandle, Props>(function Composer({ uid, book
           )}
           <CameraButton uid={uid} bookId={book?.id ?? null} sectionId={validCtx} />
           <VoiceButton onText={insertSpoken} />
+          <button type="button" onPointerDown={(e) => e.preventDefault()} onClick={() => fileRef.current?.click()} className="shrink-0 hover:text-muted">
+            file
+          </button>
+          <input ref={fileRef} type="file" accept=".txt,.md,text/plain,text/markdown" hidden onChange={(e) => void onFile(e.target.files?.[0])} />
           {extra}
           <span className="ml-auto" />
           {text && (
