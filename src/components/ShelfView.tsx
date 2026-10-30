@@ -12,7 +12,7 @@ import { useLibrary } from '@/contexts/LibraryContext';
 import { shelfViewStore } from '@/lib/prefs';
 import { createBook } from '@/lib/repo';
 import { isSource, SOURCE_FORMATS } from '@/lib/source';
-import { spineShade, stackSize } from '@/lib/spine';
+import { readPercent, spineShade, stackSize } from '@/lib/spine';
 import type { BookFormat, BookRow, BookStatus } from '@/types/legi';
 
 const SHELVES: BookStatus[] = ['reading', 'finished', 'later'];
@@ -142,7 +142,7 @@ export default function ShelfView() {
                     <Link href={`/book/?id=${b.id}`} className="block py-2.5">
                       <span className="block text-[16px] text-ink">{b.title}</span>
                       <span className="block text-[13px] text-faint">
-                        {[b.author, `${count(b)} ${count(b) === 1 ? 'quote' : 'quotes'}`].filter(Boolean).join(' · ')}
+                        {[b.author, `${count(b)} ${count(b) === 1 ? 'quote' : 'quotes'}`, readPercent(b) !== null && `${readPercent(b)}%`].filter(Boolean).join(' · ')}
                       </span>
                     </Link>
                   </li>
@@ -237,15 +237,17 @@ function StackBook({ book, count }: { book: BookRow; count: number }) {
   const shade = spineShade(book.id);
   const dark = shade >= 3;
   const { height, width, shift } = stackSize(book.id, count, book.totalPages);
+  const percent = readPercent(book);
   return (
     <Link
       href={`/book/?id=${book.id}`}
-      aria-label={`${book.title}, ${count} ${count === 1 ? 'quote' : 'quotes'}`}
+      aria-label={`${book.title}, ${count} ${count === 1 ? 'quote' : 'quotes'}${percent !== null ? `, ${percent}% read` : ''}`}
       className="flex items-center gap-3 rounded-[2px] px-3 transition-transform duration-150 ease-[var(--ease-soft)] hover:translate-x-1 focus-visible:translate-x-1"
       style={{ height, width: `${width}%`, marginLeft: `${shift}%`, background: `var(--spine-${shade})`, color: dark ? 'var(--bg)' : 'var(--ink)' }}
     >
       <span className="min-w-0 flex-1 truncate text-[13px] font-medium">{book.title}</span>
       {book.author && <span className="hidden max-w-[40%] shrink-0 truncate text-[11px] opacity-70 sm:inline">{book.author}</span>}
+      {percent !== null && <span className="shrink-0 text-[11px] tabular-nums opacity-70">{percent}%</span>}
     </Link>
   );
 }

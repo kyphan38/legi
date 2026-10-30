@@ -16,3 +16,9 @@ export function stackSize(bookId: string, quoteCount: number, totalPages: number
   const shift = Math.min(100 - width, (h >>> 3) % 7);
   return { height, width, shift };
 }
+
+/** Whole percent read, or null when pages are unknown. Finished books need no number. */
+export function readPercent(book: { status: string; currentPage: number | null; totalPages: number | null }): number | null {
+  if (book.status === 'finished' || !book.currentPage || !book.totalPages) return null;
+  return Math.min(100, Math.floor((100 * book.currentPage) / book.totalPages));
+}
