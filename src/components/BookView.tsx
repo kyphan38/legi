@@ -334,6 +334,7 @@ function BookPage({ book, focusQuote, startNew }: { book: BookRow; focusQuote: s
         ref={composer}
         uid={uid}
         book={book}
+        onPickSection={(id) => id && jump(id)}
         onSaved={(ids) => {
           const last = ids.at(-1);
           if (last) setTimeout(() => scrollToQuote(last), 60);

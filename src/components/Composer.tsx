@@ -45,13 +45,15 @@ type Props = {
   kinds?: QuoteKind[];
   /** Extra controls in the row. */
   extra?: React.ReactNode;
+  /** A chapter was picked by hand: the page can scroll to it. */
+  onPickSection?: (id: string | null) => void;
 };
 
 function ctxKey(bookId: string) {
   return `legi.ctx.${bookId}`;
 }
 
-const Composer = forwardRef<ComposerHandle, Props>(function Composer({ uid, book, onSaved, kinds = ['quote', 'thought', 'question'], extra }, ref) {
+const Composer = forwardRef<ComposerHandle, Props>(function Composer({ uid, book, onSaved, kinds = ['quote', 'thought', 'question'], extra, onPickSection }, ref) {
   const { liveQuotes, books, dupIndex } = useLibrary();
   const draftKey = `${uid}/${book?.id ?? 'inbox'}`;
   const [initial] = useState(() => readDraft(draftKey));
@@ -558,6 +560,7 @@ const Composer = forwardRef<ComposerHandle, Props>(function Composer({ uid, book
           onPick={(id) => {
             setManual(true);
             pickCtx(id);
+            onPickSection?.(id);
           }}
           onAdd={(next) => updateBook(uid, book.id, { sections: next })}
         />
