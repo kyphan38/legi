@@ -1025,6 +1025,22 @@ Checklist P7:
 - [ ] Nghe lại một câu khi tắt mạng: vẫn đọc giọng Charon (đã lưu trên máy).
 - [ ] Mac: `listen` → `stop` dừng ngay, `Esc` dừng và về sách.
 
+### P8 - Nói mục lục (2026-11-08)
+
+- `contents` → `edit` có nút micro cạnh `paste contents`. Nói các mục cần thêm, kèm trang và chỗ
+  đặt, ví dụ "dưới mục Trước 30 tuổi..., tạo mục Đừng để mất tinh thần, trang 120, ...".
+- Function `tocFromVoice` (cùng `guard()`): nhận audio + mục lục hiện có (id, tên, cấp, trang),
+  Gemini trả danh sách `{ key, title, page, parent }`; `parent` là id mục có sẵn, key của mục mới
+  ở trước, hoặc `null`. Không lưu audio, không log chữ.
+- Không lưu gì trước khi xem lại: danh sách hiện dưới mục cha, sửa được tên, trang, `×` để bỏ.
+  `add N` mới ghi (`addTocItems`: mục có trang chen vào đúng thứ tự trang giữa các mục anh em).
+- Vẫn đúng luật 7: AI chỉ chép lại cái mình nói, không tự nghĩ ra mục.
+- Hàm thuần có test: `checkTocInput`, `buildTocPrompt`, `parseTocItems` (function), `addTocItems` (máy).
+
+Checklist P8:
+- [ ] Deploy function `tocFromVoice`.
+- [ ] iPhone: nói ví dụ trên → danh sách đúng 6 mục dưới đúng chương → `add` → quote có trang 121 vào đúng mục.
+
 ---
 
 ## 8. Những gì KHÔNG làm
@@ -1083,3 +1099,4 @@ Checklist P7:
 | 2026-10-27 | `move up · move down` cho quote cùng page (trường `order`, desktop `⌥↑/⌥↓`); vẫn không kéo thả | Đọc lại cần đúng mạch ý; kéo thả tranh với chạm giữ và cuộn trên iPhone, quote dài khó kéo |
 | 2026-10-28 | Bật/tắt Daily theo sách (`daily`), đọc to trong Read slowly bằng `speechSynthesis` | Chủ app muốn chọn sách nào ra Daily, và nghe lại quote khi không nhìn màn hình; giọng có sẵn thì không tốn tiền, không cần server |
 | 2026-10-28 | Đọc to bằng Google Chirp 3 HD (Charon) qua function `speak`, giọng máy chỉ là dự phòng | Giọng có sẵn trong máy nghe như robot; Chirp 3 HD tự nhiên, đã GA, gần như miễn phí với số quote của một người |
+| 2026-11-08 | Nói mục lục: micro trong `edit` → AI → xem lại → `add` | Gõ mục lục trên điện thoại chậm; nói nhanh hơn, xem lại trước khi lưu nên không sợ AI sai |

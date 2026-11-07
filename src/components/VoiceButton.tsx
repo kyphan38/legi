@@ -11,7 +11,10 @@ import { MicIcon } from '@/components/Icons';
 import { useRecorder } from '@/hooks/useRecorder';
 import { getFunctionsClient } from '@/lib/firebase-client';
 
-export default function VoiceButton({ onText }: { onText: (text: string) => void }) {
+export type Recording = { base64: string; mimeType: string };
+
+/** `send` replaces the default (transcribe → onText); it returns false when nothing was heard. */
+export default function VoiceButton({ onText, send }: { onText?: (text: string) => void; send?: (rec: Recording) => Promise<boolean> }) {
   const { state, start, stop, cancel, error, supported } = useRecorder();
   const [busy, setBusy] = useState(false);
   const [note, setNote] = useState<string | null>(null);
@@ -40,10 +43,8 @@ export default function VoiceButton({ onText }: { onText: (text: string) => void
     if (!rec) return;
     setBusy(true);
     try {
-      const call = httpsCallable<{ audio: string; mimeType: string }, { text: string }>(getFunctionsClient(), 'transcribe', { timeout: 120_000 });
-      const res = await call({ audio: rec.base64, mimeType: rec.mimeType });
-      if (res.data.text) onText(res.data.text);
-      else say('Nothing heard.');
+      const heard = send ? await send(rec) : await transcribe(rec, onText);
+      if (!heard) say('Nothing heard.');
     } catch (err) {
       console.warn('[voice] transcribe failed', err);
       say((err as { code?: string }).code === 'functions/resource-exhausted' ? 'AI credit used up.' : 'Could not read that.');
@@ -102,4 +103,11 @@ export default function VoiceButton({ onText }: { onText: (text: string) => void
       {(note || error) && !recording && <span className="fade-in min-w-0 truncate text-muted">{note ?? error}</span>}
     </>
   );
+}
+
+async function transcribe(rec: Recording, onText?: (text: string) => void): Promise<boolean> {
+  const call = httpsCallable<{ audio: string; mimeType: string }, { text: string }>(getFunctionsClient(), 'transcribe', { timeout: 120_000 });
+  const res = await call({ audio: rec.base64, mimeType: rec.mimeType });
+  if (res.data.text) onText?.(res.data.text);
+  return Boolean(res.data.text);
 }

@@ -8,13 +8,17 @@
 // (A right-edge minimap was tried and dropped: it looked like noise.)
 // "edit" turns the outline into a list of inputs: Tab / Shift+Tab indent,
 // ⌥↑ / ⌥↓ move, long press or ··· for the same on phones, paste a table of
-// contents. Each section can hold its first page so quotes find it by page.
+// contents, or say it (the mic): AI turns speech into sections, shown for
+// review before they are added. Each section can hold its first page so quotes find it by page.
 // ============================================================
 
+import { httpsCallable } from 'firebase/functions';
 import { useRef, useState } from 'react';
 
 import Sheet from '@/components/Sheet';
-import { addSection, addSectionAfter, indent, moveDown, moveUp, outdent, parseToc, removeSection, renameSection, setStartPage, type TreeNode } from '@/lib/outline';
+import VoiceButton, { type Recording } from '@/components/VoiceButton';
+import { getFunctionsClient } from '@/lib/firebase-client';
+import { addSection, addSectionAfter, addTocItems, buildTree, flatten, indent, moveDown, moveUp, outdent, parseToc, removeSection, renameSection, setStartPage, type TocItem, type TreeNode } from '@/lib/outline';
 import type { Section } from '@/types/legi';
 
 type Props = {
@@ -52,6 +56,81 @@ function OutlineList({ nodes, counts, activeId, onJump, showCounts = true }: Pic
   );
 }
 
+/** Sections said aloud, in reading order. Nothing is saved before `add`. */
+async function tocFromVoice(rec: Recording, sections: Section[]): Promise<TocItem[]> {
+  const outline = flatten(buildTree(sections)).map((n) => ({ id: n.section.id, title: n.section.title, depth: n.depth, page: n.section.startPage ?? null }));
+  const call = httpsCallable<{ audio: string; mimeType: string; outline: typeof outline }, { items: TocItem[] }>(getFunctionsClient(), 'tocFromVoice', { timeout: 120_000 });
+  const res = await call({ audio: rec.base64, mimeType: rec.mimeType, outline });
+  return res.data.items ?? [];
+}
+
+function ReviewToc({ items, sections, onChange, onAdd, onCancel }: { items: TocItem[]; sections: Section[]; onChange: (items: TocItem[]) => void; onAdd: () => void; onCancel: () => void }) {
+  const titleOf = new Map(sections.map((s) => [s.id, s.title]));
+  const byKey = new Map(items.map((it) => [it.key, it]));
+  const depthOf = (it: TocItem): number => {
+    let d = 0;
+    for (let p = it.parent; p && byKey.has(p) && d < 20; p = byKey.get(p)!.parent) d++;
+    return d;
+  };
+  // The existing section a group of new items goes under.
+  const rootOf = (it: TocItem): string | null => {
+    let cur = it;
+    for (let i = 0; cur.parent && byKey.has(cur.parent) && i < 20; i++) cur = byKey.get(cur.parent)!;
+    return cur.parent;
+  };
+  const edit = (key: string, patch: Partial<TocItem>) => onChange(items.map((it) => (it.key === key ? { ...it, ...patch } : it)));
+  // Its children move up to its parent.
+  const drop = (gone: TocItem) => onChange(items.filter((it) => it.key !== gone.key).map((it) => (it.parent === gone.key ? { ...it, parent: gone.parent } : it)));
+
+  return (
+    <div className="fade-in mt-4">
+      <ul className="text-[15px]">
+        {items.map((it, i) => {
+          const root = rootOf(it);
+          const newGroup = i === 0 || rootOf(items[i - 1]) !== root;
+          return (
+            <li key={it.key}>
+              {newGroup && <div className="pt-2 text-[13px] text-faint">{root ? titleOf.get(root) : 'top level'}</div>}
+              <div className="flex items-baseline gap-2 border-b border-line" style={{ paddingLeft: (depthOf(it) + (root ? 1 : 0)) * 16 }}>
+                <input
+                  defaultValue={it.title}
+                  lang="vi"
+                  spellCheck={false}
+                  aria-label="Section"
+                  onBlur={(e) => e.target.value.trim() !== it.title && edit(it.key, { title: e.target.value.trim() })}
+                  className="min-w-0 flex-1 bg-transparent py-2 text-[16px] text-ink outline-none"
+                />
+                <input
+                  defaultValue={it.page ?? ''}
+                  inputMode="numeric"
+                  placeholder="p."
+                  aria-label="First page"
+                  onBlur={(e) => {
+                    const v = e.target.value.replace(/\D/g, '').slice(0, 5);
+                    edit(it.key, { page: v ? Number(v) : null });
+                  }}
+                  className="w-10 bg-transparent py-2 text-right text-[14px] text-muted tabular-nums outline-none placeholder:text-faint"
+                />
+                <button type="button" aria-label="Remove" onClick={() => drop(it)} className="px-1 text-faint hover:text-ink">
+                  ×
+                </button>
+              </div>
+            </li>
+          );
+        })}
+      </ul>
+      <div className="mt-3 flex gap-4 text-[13px]">
+        <button type="button" onClick={onAdd} className="text-ink">
+          add {items.length}
+        </button>
+        <button type="button" onClick={onCancel} className="text-faint hover:text-ink">
+          cancel
+        </button>
+      </div>
+    </div>
+  );
+}
+
 function EditOutline({
   nodes,
   sections,
@@ -65,6 +144,7 @@ function EditOutline({
   const [menuId, setMenuId] = useState<string | null>(null);
   const [confirmId, setConfirmId] = useState<string | null>(null);
   const [toc, setToc] = useState<string | null>(null);
+  const [spoken, setSpoken] = useState<TocItem[] | null>(null);
   // A new section typed in place, under or after `id`; never saved with an empty title.
   const [adding, setAdding] = useState<{ id: string; inside: boolean } | null>(null);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -223,11 +303,31 @@ function EditOutline({
         ))}
       </ul>
 
-      {toc === null ? (
-        <div className="mt-4 flex flex-wrap gap-x-4 gap-y-1 text-[13px] text-faint">
+      {spoken ? (
+        <ReviewToc
+          items={spoken}
+          sections={sections}
+          onChange={(items) => (items.length ? setSpoken(items) : setSpoken(null))}
+          onAdd={() => {
+            onChange(addTocItems(sections, spoken));
+            setSpoken(null);
+          }}
+          onCancel={() => setSpoken(null)}
+        />
+      ) : toc === null ? (
+        <div className="mt-4 flex flex-wrap items-baseline gap-x-4 gap-y-1 text-[13px] text-faint">
           <button type="button" onClick={() => setToc('')} className="hover:text-ink">
             paste contents
           </button>
+          <span className="flex min-w-0 items-baseline gap-2">
+            <VoiceButton
+              send={async (rec) => {
+                const items = await tocFromVoice(rec, sections);
+                if (items.length) setSpoken(items);
+                return items.length > 0;
+              }}
+            />
+          </span>
           {misplaced > 0 && (
             <button type="button" onClick={onPlaceByPage} className="text-muted hover:text-ink">
               place {misplaced} {misplaced === 1 ? 'quote' : 'quotes'} by page

@@ -222,3 +222,29 @@ export function parseToc(text: string, sections: Section[] = []): Section[] {
   }
   return out;
 }
+
+/** A section said aloud (see functions/src/toc.ts). `parent`: a section id, an earlier item's key, or null. */
+export type TocItem = { key: string; title: string; page: number | null; parent: string | null };
+
+/**
+ * Reviewed voice items → sections. Each goes under its parent; with a page it
+ * slots in before the first sibling that starts later, so a chapter's parts
+ * stay in page order. Without a page it goes last.
+ */
+export function addTocItems(sections: Section[], items: TocItem[]): Section[] {
+  let out = sections;
+  const ids = new Map<string, string>();
+  for (const it of items) {
+    const title = it.title.trim().slice(0, 200);
+    if (!title) continue;
+    const ref = it.parent === null ? null : (ids.get(it.parent) ?? it.parent);
+    const parentId = ref && out.some((s) => s.id === ref) ? ref : null;
+    const siblings = childrenOf(out, parentId);
+    const at = it.page === null ? -1 : siblings.findIndex((s) => s.startPage != null && s.startPage > it.page!);
+    const id = newId();
+    const order = at < 0 ? orderBetween(siblings.at(-1)?.order ?? null, null) : orderBetween(siblings[at - 1]?.order ?? null, siblings[at].order);
+    out = [...out, { id, title, parentId, order, startPage: it.page }];
+    ids.set(it.key, id);
+  }
+  return out;
+}

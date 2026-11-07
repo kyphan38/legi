@@ -119,3 +119,23 @@ test('headingParent: a paste that starts at ## keeps its ## side by side', () =>
   }
   assert.deepEqual(parents, ['base', 'base', 'b', 'base', 'base', 'd']);
 });
+
+import { addTocItems } from '@/lib/outline';
+
+test('addTocItems puts items under an existing section, in page order', () => {
+  const book: Section[] = [
+    { ...S('c', null, 1, 'Trước 30 tuổi'), startPage: 110 },
+    { ...S('c1', 'c', 1), startPage: 112 },
+    { ...S('c9', 'c', 2), startPage: 130 },
+    S('d', null, 2),
+  ];
+  const out = addTocItems(book, [
+    { key: 'n1', title: 'Đừng để mất tinh thần', page: 120, parent: 'c' },
+    { key: 'n2', title: 'Đọc nhiều sách', page: 121, parent: 'n1' },
+    { key: 'n3', title: 'Tiết kiệm tiền', page: null, parent: 'c' },
+    { key: 'n4', title: '  ', page: 5, parent: null },
+    { key: 'n5', title: 'Lạc chỗ', page: null, parent: 'missing' },
+  ]);
+  const view = flatten(buildTree(out)).map((n) => `${n.depth}:${n.section.title}:${n.section.startPage ?? ''}`);
+  assert.deepEqual(view, ['0:Trước 30 tuổi:110', '1:c1:112', '1:Đừng để mất tinh thần:120', '2:Đọc nhiều sách:121', '1:c9:130', '1:Tiết kiệm tiền:', '0:d:', '0:Lạc chỗ:']);
+});

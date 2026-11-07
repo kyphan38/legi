@@ -104,3 +104,36 @@ test('splitForSpeech: parts under the byte limit, nothing lost', () => {
   const noStop = 'chữ '.repeat(400).trim();
   assert.ok(splitForSpeech(noStop, 300).every((p) => new TextEncoder().encode(p).length <= 300));
 });
+
+import { buildTocPrompt, checkTocInput, parseTocItems } from '../functions/src/toc.ts';
+
+test('checkTocInput needs audio and a sane outline', () => {
+  const ok = checkTocInput({ audio: 'AAAA', mimeType: 'audio/mp4', outline: [{ id: 'abc12345', title: 'Ch 1', depth: 0, page: 3 }] });
+  assert.equal(ok.outline[0].page, 3);
+  assert.throws(() => checkTocInput({ audio: 'AAAA', mimeType: 'audio/mp4', outline: [{ id: 'bad id!' }] }));
+  assert.throws(() => checkTocInput({ audio: 'AAAA', mimeType: 'audio/mp4' }));
+  assert.throws(() => checkTocInput({ audio: '', mimeType: 'audio/mp4', outline: [] }));
+});
+
+test('buildTocPrompt lists the outline with ids and pages', () => {
+  const p = buildTocPrompt([{ id: 'c', title: 'Trước 30 tuổi', depth: 0, page: 110 }, { id: 'c1', title: 'Một', depth: 1, page: null }]);
+  assert.match(p, /\[c\] Trước 30 tuổi \(p\. 110\)/);
+  assert.match(p, /\n {2}\[c1\] Một\n/);
+});
+
+test('parseTocItems keeps known parents only and cleans titles', () => {
+  const raw = JSON.stringify({
+    items: [
+      { key: 'n1', title: 'Đừng để mất tinh thần.', page: 120, parent: 'c' },
+      { key: 'n2', title: 'Đọc nhiều sách', page: 121, parent: 'n1' },
+      { key: 'n3', title: 'Vận động', page: -4, parent: 'n9' },
+      { key: 'n4', title: ' ', page: 1, parent: null },
+    ],
+  });
+  assert.deepEqual(parseTocItems(raw, ['c']), [
+    { key: 'n1', title: 'Đừng để mất tinh thần', page: 120, parent: 'c' },
+    { key: 'n2', title: 'Đọc nhiều sách', page: 121, parent: 'n1' },
+    { key: 'n3', title: 'Vận động', page: null, parent: null },
+  ]);
+  assert.deepEqual(parseTocItems('nope', []), []);
+});

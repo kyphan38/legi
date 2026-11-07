@@ -1,5 +1,5 @@
 // ============================================================
-// legi - Cloud Functions: photo OCR, voice to text, text to speech
+// legi - Cloud Functions: photo OCR, voice to text, voice to contents, text to speech
 //
 // The site stays a static export. These functions exist because the Gemini
 // key and Google Cloud access must not reach the browser. It checks the same email as
@@ -16,6 +16,7 @@ import { defineSecret, defineString } from 'firebase-functions/params';
 import { isAllowed } from './access.ts';
 import { buildExtractPrompt, checkInput, EXTRACT_SCHEMA, parseExtract } from './extract.ts';
 import { checkSpeak, splitForSpeech, synthesizeBody } from './speak.ts';
+import { buildTocPrompt, checkTocInput, parseTocItems, TOC_SCHEMA } from './toc.ts';
 import { checkVoice, parseVoice, VOICE_PROMPT, VOICE_SCHEMA } from './voice.ts';
 
 setGlobalOptions({ region: 'asia-southeast1', maxInstances: 2 });
@@ -72,6 +73,29 @@ export const transcribe = onCall({ secrets: [GEMINI_API_KEY], timeoutSeconds: 12
   } catch (err) {
     // The error only: never what was said.
     logger.error('transcribe failed', err instanceof Error ? err.message : String(err));
+    throw modelError(err);
+  }
+});
+
+/** Sections said aloud → items to review. The audio is not kept anywhere. */
+export const tocFromVoice = onCall({ secrets: [GEMINI_API_KEY], timeoutSeconds: 120, memory: '512MiB' }, async (req) => {
+  guard(req.auth);
+  let input;
+  try {
+    input = checkTocInput(req.data);
+  } catch (err) {
+    throw new HttpsError('invalid-argument', err instanceof Error ? err.message : 'Bad input');
+  }
+  try {
+    const res = await gemini().models.generateContent({
+      model: GEMINI_MODEL.value(),
+      contents: [{ role: 'user', parts: [{ text: buildTocPrompt(input.outline) }, { inlineData: { mimeType: input.mimeType, data: input.audio } }] }],
+      config: { temperature: 0, responseMimeType: 'application/json', responseJsonSchema: TOC_SCHEMA, thinkingConfig: THINKING, httpOptions: { timeout: 100_000 } },
+    });
+    return { items: parseTocItems(res.text ?? '', input.outline.map((o) => o.id)) };
+  } catch (err) {
+    // The error only: never what was said.
+    logger.error('tocFromVoice failed', err instanceof Error ? err.message : String(err));
     throw modelError(err);
   }
 });
