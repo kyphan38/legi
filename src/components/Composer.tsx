@@ -63,6 +63,7 @@ const Composer = forwardRef<ComposerHandle, Props>(function Composer({ uid, book
   // undefined in storage = never chosen; '' = "no chapter" on purpose.
   const [ctx, setCtx] = useState<string | null>(() => (book ? readJson<string>(ctxKey(book.id)) : null));
   const [picker, setPicker] = useState(false);
+  const [kindMenu, setKindMenu] = useState(false);
   // null = not chosen: marked text splits, other text stays one quote.
   const [split, setSplit] = useState<boolean | null>(null);
   const [broken, setBroken] = useState(false);
@@ -434,6 +435,43 @@ const Composer = forwardRef<ComposerHandle, Props>(function Composer({ uid, book
           </p>
         )}
 
+        {/* Kind and note share one button so the row stays short. */}
+        {kindMenu && (
+          <div className="fade-in flex items-center gap-4 py-1 text-[13px]">
+            {kinds.map((k) => (
+              <button
+                key={k}
+                type="button"
+                onPointerDown={(e) => e.preventDefault()}
+                onClick={() => {
+                  setKind(k);
+                  saveDraft({ kind: k });
+                  setKindMenu(false);
+                }}
+                aria-pressed={k === kind}
+                className={k === kind ? 'text-ink' : 'text-faint hover:text-muted'}
+              >
+                {k}
+              </button>
+            ))}
+            <span className="text-line" aria-hidden>
+              |
+            </span>
+            <button
+              type="button"
+              onClick={() => {
+                setShowNote((v) => !v);
+                setKindMenu(false);
+                requestAnimationFrame(() => (showNote ? textRef : noteRef).current?.focus());
+              }}
+              aria-pressed={showNote}
+              className={showNote ? 'text-ink' : 'text-faint hover:text-muted'}
+            >
+              {showNote ? '✓ note' : '+ note'}
+            </button>
+          </div>
+        )}
+
         {/* One row of controls: where it goes, what it is, page, save. */}
         <div className="flex items-center gap-3 pt-1 text-[13px] text-faint">
           {book && (
@@ -444,25 +482,13 @@ const Composer = forwardRef<ComposerHandle, Props>(function Composer({ uid, book
           <button
             type="button"
             onPointerDown={(e) => e.preventDefault()}
-            onClick={() => {
-              const next = kinds[(kinds.indexOf(kind) + 1) % kinds.length];
-              setKind(next);
-              saveDraft({ kind: next });
-            }}
-            aria-label={`Kind: ${kind}. Tap to change.`}
-            className="shrink-0 text-muted hover:text-ink"
+            onClick={() => setKindMenu((v) => !v)}
+            aria-expanded={kindMenu}
+            aria-label={`Kind: ${kind}${showNote ? ', with note' : ''}. Tap to change.`}
+            className={`shrink-0 hover:text-ink ${kindMenu ? 'text-ink' : 'text-muted'}`}
           >
             {kind}
-          </button>
-          <button
-            type="button"
-            onClick={() => {
-              setShowNote((v) => !v);
-              requestAnimationFrame(() => (showNote ? textRef : noteRef).current?.focus());
-            }}
-            className={`shrink-0 ${showNote ? 'text-ink' : 'hover:text-muted'}`}
-          >
-            + note
+            {showNote && ' + note'}
           </button>
           {hasSelection && (
             <button type="button" onPointerDown={(e) => e.preventDefault()} onClick={emphasize} aria-label="Emphasis" className="fade-in font-semibold hover:text-muted">
