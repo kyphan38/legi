@@ -38,6 +38,13 @@ function gemini(): GoogleGenAI {
   return client;
 }
 
+/** Out of Gemini credit (HTTP 402 / 429) gets its own code so the app can say so. */
+function modelError(err: unknown): HttpsError {
+  const msg = err instanceof Error ? err.message : String(err);
+  if (/"code":\s*(402|429)|RESOURCE_EXHAUSTED/.test(msg)) return new HttpsError('resource-exhausted', 'Model quota used up');
+  return new HttpsError('unavailable', 'Model call failed');
+}
+
 function guard(auth: { token: Parameters<typeof isAllowed>[0] } | undefined): void {
   if (!auth || !isAllowed(auth.token, ALLOWED_USER_EMAIL.value())) {
     throw new HttpsError('permission-denied', 'Not allowed');
@@ -63,7 +70,7 @@ export const transcribe = onCall({ secrets: [GEMINI_API_KEY], timeoutSeconds: 12
   } catch (err) {
     // The error only: never what was said.
     logger.error('transcribe failed', err instanceof Error ? err.message : String(err));
-    throw new HttpsError('unavailable', 'Model call failed');
+    throw modelError(err);
   }
 });
 
@@ -141,6 +148,6 @@ export const extractPage = onCall({ secrets: [GEMINI_API_KEY], timeoutSeconds: 1
   } catch (err) {
     // The error only: never page text.
     logger.error('extractPage failed', err instanceof Error ? err.message : String(err));
-    throw new HttpsError('unavailable', 'Model call failed');
+    throw modelError(err);
   }
 });

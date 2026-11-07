@@ -46,7 +46,7 @@ export default function VoiceButton({ onText }: { onText: (text: string) => void
       else say('Nothing heard.');
     } catch (err) {
       console.warn('[voice] transcribe failed', err);
-      say('Could not read that.');
+      say((err as { code?: string }).code === 'functions/resource-exhausted' ? 'AI credit used up.' : 'Could not read that.');
     } finally {
       setBusy(false);
     }
