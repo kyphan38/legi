@@ -28,6 +28,9 @@ import { readJson, writeJson } from '@/lib/store';
 import type { DailyPick, QuoteRow } from '@/types/legi';
 
 const SEEN_KEY = 'legi.dailySeen';
+// Today's pick plus each "another", so coming back shows the last one again.
+const SHOWN_KEY = 'legi.dailyShown';
+type Shown = { day: string; ids: string[] };
 const SERVER_WAIT_MS = 1500;
 
 function quoteHref(q: QuoteRow): string {
@@ -65,10 +68,16 @@ function Daily({ day, continueTo }: { day: string; continueTo: string }) {
   const router = useRouter();
   const { books, quotes, liveQuotes } = useLibrary();
   // The day's pick first, then each "another". The last one is on screen.
-  const [shown, setShown] = useState<string[]>([]);
+  const [saved] = useState(() => {
+    const s = readJson<Shown>(SHOWN_KEY);
+    // A quote deleted since then drops out.
+    const ids = s?.day === day && Array.isArray(s.ids) ? s.ids.filter((id) => quotes.get(id)?.deletedAt === null) : [];
+    return ids.length > 1 ? ids : null;
+  });
+  const [shown, setShown] = useState<string[]>(() => saved ?? []);
   const decided = useRef(false);
   // After "another", a late snapshot of the day's pick must not switch back.
-  const browsing = useRef(false);
+  const browsing = useRef(saved !== null);
   const [seed] = useState(() => Math.floor(Math.random() * 2 ** 32));
 
   // Use the day's pick if any device made one; otherwise make it here.
@@ -76,8 +85,8 @@ function Daily({ day, continueTo }: { day: string; continueTo: string }) {
     const ref = doc(getDb(), 'users', uid, 'daily', day);
     let timer: ReturnType<typeof setTimeout> | null = null;
     const decide = (existing: DailyPick | null) => {
+      if (browsing.current) return;
       if (existing) {
-        if (browsing.current) return;
         setShown([existing.quoteId]);
         decided.current = true;
         return;
@@ -123,22 +132,26 @@ function Daily({ day, continueTo }: { day: string; continueTo: string }) {
   const another = () => {
     if (!next) return;
     browsing.current = true;
-    setShown((ids) => [...ids, next.id]);
+    const ids = [...shown, next.id];
+    setShown(ids);
+    writeJson(SHOWN_KEY, { day, ids });
     markShown(uid, next);
   };
 
-  // Any letter key: continue to the book and type.
+  // "continue" and any letter key: the last book, cursor in the quote box.
+  const writeTo = continueTo.startsWith('/book/') && !continueTo.includes('new=1') ? `${continueTo}&new=1` : continueTo;
+
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.metaKey || e.ctrlKey || e.altKey || e.key.length !== 1) return;
-      router.replace(continueTo.startsWith('/book/') ? `${continueTo}${continueTo.includes('new=1') ? '' : '&new=1'}` : continueTo);
+      router.replace(writeTo);
     };
     const t = setTimeout(() => window.addEventListener('keydown', onKey), 300);
     return () => {
       clearTimeout(t);
       window.removeEventListener('keydown', onKey);
     };
-  }, [continueTo, router]);
+  }, [writeTo, router]);
 
   if (!quote) return <main className="min-h-dvh" />;
   const book = quote.bookId ? books.get(quote.bookId) : null;
@@ -165,7 +178,7 @@ function Daily({ day, continueTo }: { day: string; continueTo: string }) {
               another
             </button>
           )}
-          <Link href={continueTo} replace className="text-faint hover:text-ink">
+          <Link href={writeTo} replace className="text-faint hover:text-ink">
             continue
           </Link>
         </div>
