@@ -6,7 +6,7 @@
 // firestore.rules, keeps nothing (no images, no text) and logs no content.
 // ============================================================
 
-import { GoogleGenAI } from '@google/genai';
+import { GoogleGenAI, ThinkingLevel } from '@google/genai';
 import { applicationDefault } from 'firebase-admin/app';
 import { setGlobalOptions } from 'firebase-functions';
 import { HttpsError, onCall } from 'firebase-functions/https';
@@ -22,7 +22,9 @@ setGlobalOptions({ region: 'asia-southeast1', maxInstances: 2 });
 
 const GEMINI_API_KEY = defineSecret('GEMINI_API_KEY');
 const ALLOWED_USER_EMAIL = defineString('ALLOWED_USER_EMAIL');
-const GEMINI_MODEL = defineString('GEMINI_MODEL', { default: 'gemini-4-argon' });
+const GEMINI_MODEL = defineString('GEMINI_MODEL', { default: 'gemini-3.8-flash' });
+// Transcribing and reading a page need no reasoning; low matched gemini-4-argon on tests.
+const THINKING = { thinkingLevel: ThinkingLevel.LOW };
 // The Google Cloud project that pays for Text-to-Speech (shared with the anki skill).
 const TTS_QUOTA_PROJECT = defineString('TTS_QUOTA_PROJECT', { default: '' });
 
@@ -64,7 +66,7 @@ export const transcribe = onCall({ secrets: [GEMINI_API_KEY], timeoutSeconds: 12
     const res = await gemini().models.generateContent({
       model: GEMINI_MODEL.value(),
       contents: [{ role: 'user', parts: [{ text: VOICE_PROMPT }, { inlineData: { mimeType: input.mimeType, data: input.audio } }] }],
-      config: { temperature: 0, responseMimeType: 'application/json', responseJsonSchema: VOICE_SCHEMA, httpOptions: { timeout: 100_000 } },
+      config: { temperature: 0, responseMimeType: 'application/json', responseJsonSchema: VOICE_SCHEMA, thinkingConfig: THINKING, httpOptions: { timeout: 100_000 } },
     });
     return { text: parseVoice(res.text ?? '') };
   } catch (err) {
@@ -141,6 +143,7 @@ export const extractPage = onCall({ secrets: [GEMINI_API_KEY], timeoutSeconds: 1
         temperature: 0,
         responseMimeType: 'application/json',
         responseJsonSchema: EXTRACT_SCHEMA,
+        thinkingConfig: THINKING,
         httpOptions: { timeout: 100_000 },
       },
     });
