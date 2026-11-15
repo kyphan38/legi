@@ -12,7 +12,6 @@
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { doc, onSnapshot } from 'firebase/firestore';
 
 import { useUid } from '@/components/AuthGate';
 import { LAST_BOOK_KEY } from '@/components/BookView';
@@ -21,9 +20,8 @@ import Typewriter from '@/components/Typewriter';
 import { useLibrary } from '@/contexts/LibraryContext';
 import { mulberry32, onThisDay, pickAnother, pickDaily } from '@/lib/daily';
 import { dayOf } from '@/lib/day';
-import { getDb } from '@/lib/firebase-client';
 import { pathOf } from '@/lib/outline';
-import { markShown, saveDaily } from '@/lib/repo';
+import { markShown, saveDaily, watchDaily } from '@/lib/repo';
 import { readJson, writeJson } from '@/lib/store';
 import type { DailyPick, QuoteRow } from '@/types/legi';
 
@@ -82,7 +80,6 @@ function Daily({ day, continueTo }: { day: string; continueTo: string }) {
 
   // Use the day's pick if any device made one; otherwise make it here.
   useEffect(() => {
-    const ref = doc(getDb(), 'users', uid, 'daily', day);
     let timer: ReturnType<typeof setTimeout> | null = null;
     const decide = (existing: DailyPick | null) => {
       if (browsing.current) return;
@@ -98,12 +95,11 @@ function Daily({ day, continueTo }: { day: string; continueTo: string }) {
       setShown([pick.id]);
       saveDaily(uid, day, pick);
     };
-    const off = onSnapshot(
-      ref,
-      { includeMetadataChanges: true },
-      (snap) => {
-        const data = snap.exists() ? (snap.data() as DailyPick) : null;
-        if (data || !snap.metadata.fromCache || !navigator.onLine) {
+    const off = watchDaily(
+      uid,
+      day,
+      (data, fromCache) => {
+        if (data || !fromCache || !navigator.onLine) {
           if (timer) clearTimeout(timer);
           decide(data);
         } else if (!timer) {

@@ -8,7 +8,7 @@
 // Delete, move, merge and split push an undo entry.
 // ============================================================
 
-import { collection, deleteDoc, doc, setDoc, updateDoc, writeBatch, type WriteBatch } from 'firebase/firestore';
+import { collection, deleteDoc, doc, onSnapshot, setDoc, updateDoc, writeBatch, type WriteBatch } from 'firebase/firestore';
 
 import { getDb } from '@/lib/firebase-client';
 import { mergeFields, splitText } from '@/lib/quote-ops';
@@ -224,6 +224,24 @@ export function saveDaily(uid: string, day: string, quote: QuoteRow, now = Date.
   b.set(doc(getDb(), 'users', uid, 'daily', day), pick);
   b.update(quoteRef(uid, quote.id), { shownCount: quote.shownCount + 1, lastShownAt: now, updatedAt: now });
   b.commit().catch(warn('saveDaily'));
+}
+
+/**
+ * Watches daily/{day}. `fromCache` is true while the server has not answered yet,
+ * so the caller can wait before it makes its own pick. Returns the unsubscribe.
+ */
+export function watchDaily(
+  uid: string,
+  day: string,
+  onPick: (pick: DailyPick | null, fromCache: boolean) => void,
+  onError: () => void,
+): () => void {
+  return onSnapshot(
+    doc(getDb(), 'users', uid, 'daily', day),
+    { includeMetadataChanges: true },
+    (snap) => onPick(snap.exists() ? (snap.data() as DailyPick) : null, snap.metadata.fromCache),
+    onError,
+  );
 }
 
 /** Counts one more showing (the "another" quote after the Daily). */

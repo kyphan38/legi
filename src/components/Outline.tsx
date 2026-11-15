@@ -12,12 +12,11 @@
 // review before they are added. Each section can hold its first page so quotes find it by page.
 // ============================================================
 
-import { httpsCallable } from 'firebase/functions';
 import { useRef, useState } from 'react';
 
 import Sheet from '@/components/Sheet';
 import VoiceButton, { type Recording } from '@/components/VoiceButton';
-import { getFunctionsClient } from '@/lib/firebase-client';
+import { tocFromVoice as readToc } from '@/lib/ai';
 import { addSection, addSectionAfter, addTocItems, buildTree, flatten, indent, moveDown, moveUp, outdent, parseToc, removeSection, renameSection, setStartPage, type TocItem, type TreeNode } from '@/lib/outline';
 import type { Section } from '@/types/legi';
 
@@ -59,9 +58,7 @@ function OutlineList({ nodes, counts, activeId, onJump, showCounts = true }: Pic
 /** Sections said aloud, in reading order. Nothing is saved before `add`. */
 async function tocFromVoice(rec: Recording, sections: Section[]): Promise<TocItem[]> {
   const outline = flatten(buildTree(sections)).map((n) => ({ id: n.section.id, title: n.section.title, depth: n.depth, page: n.section.startPage ?? null }));
-  const call = httpsCallable<{ audio: string; mimeType: string; outline: typeof outline }, { items: TocItem[] }>(getFunctionsClient(), 'tocFromVoice', { timeout: 120_000 });
-  const res = await call({ audio: rec.base64, mimeType: rec.mimeType, outline });
-  return res.data.items ?? [];
+  return readToc(rec.base64, rec.mimeType, outline);
 }
 
 function ReviewToc({ items, sections, onChange, onAdd, onCancel }: { items: TocItem[]; sections: Section[]; onChange: (items: TocItem[]) => void; onAdd: () => void; onCancel: () => void }) {

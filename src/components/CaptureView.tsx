@@ -10,16 +10,15 @@
 
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
-import { httpsCallable } from 'firebase/functions';
 
 import { useUid } from '@/components/AuthGate';
 import GrowText from '@/components/GrowText';
 import SectionPicker from '@/components/SectionPicker';
 import TopBar from '@/components/TopBar';
 import { useLibrary } from '@/contexts/LibraryContext';
+import { extractPage } from '@/lib/ai';
 import { captureStore, guessSection, initialPicks, type CaptureItem, type PageResult } from '@/lib/capture';
 import { findSimilar } from '@/lib/dup';
-import { getFunctionsClient } from '@/lib/firebase-client';
 import { blobToBase64 } from '@/lib/image';
 import { pathOf } from '@/lib/outline';
 import { createQuotes, updateBook, type QuoteInput } from '@/lib/repo';
@@ -30,9 +29,7 @@ type Row = { text: string; picked: boolean; dup: boolean };
 type PageState = { page: string; sectionId: string | null; rows: Row[] };
 
 async function readPhoto(item: CaptureItem): Promise<PageResult[]> {
-  const call = httpsCallable<{ images: string[]; mode: 'marked' | 'all' }, { pages: PageResult[] }>(getFunctionsClient(), 'extractPage', { timeout: 120_000 });
-  const res = await call({ images: [await blobToBase64(item.blob)], mode: item.mode });
-  return res.data.pages;
+  return extractPage([await blobToBase64(item.blob)], item.mode);
 }
 
 export default function CaptureView() {

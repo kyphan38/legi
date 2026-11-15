@@ -4,12 +4,11 @@
 // hold-to-talk like logi). The recording goes to the `transcribe` function and
 // the text lands in the composer. The audio is never kept.
 
-import { httpsCallable } from 'firebase/functions';
 import { useEffect, useRef, useState } from 'react';
 
 import { MicIcon } from '@/components/Icons';
 import { useRecorder } from '@/hooks/useRecorder';
-import { getFunctionsClient } from '@/lib/firebase-client';
+import { transcribe as speechToText } from '@/lib/ai';
 
 export type Recording = { base64: string; mimeType: string };
 
@@ -106,8 +105,7 @@ export default function VoiceButton({ onText, send }: { onText?: (text: string) 
 }
 
 async function transcribe(rec: Recording, onText?: (text: string) => void): Promise<boolean> {
-  const call = httpsCallable<{ audio: string; mimeType: string }, { text: string }>(getFunctionsClient(), 'transcribe', { timeout: 120_000 });
-  const res = await call({ audio: rec.base64, mimeType: rec.mimeType });
-  if (res.data.text) onText?.(res.data.text);
-  return Boolean(res.data.text);
+  const text = await speechToText(rec.base64, rec.mimeType);
+  if (text) onText?.(text);
+  return Boolean(text);
 }
