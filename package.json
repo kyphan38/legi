@@ -12,6 +12,7 @@
     "build": "next build",
     "lint": "eslint",
     "test": "TZ=Asia/Ho_Chi_Minh node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --import ./test/register.mjs --test test/*.test.ts",
+    "test:rules": "node scripts/rules-check.mjs",
     "typecheck": "next typegen && tsc --noEmit",
     "icons": "node scripts/make-icons.mjs",
     "rules": "node scripts/rules.mjs",
