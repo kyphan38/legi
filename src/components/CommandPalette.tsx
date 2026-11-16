@@ -84,6 +84,8 @@ function Palette({ onClose }: { onClose: () => void }) {
       { key: 'shelf', label: 'shelf', text: 'shelf', run: go('/shelf/') },
       { key: 'inbox', label: 'inbox', text: 'inbox', run: go('/inbox/') },
       { key: 'questions', label: 'questions', text: 'questions', run: go('/questions/') },
+      { key: 'meaning', label: 'search by meaning', text: 'search by meaning', run: go('/search/?m=1') },
+      { key: 'year', label: 'year', text: 'year', run: go('/year/') },
       { key: 'trash', label: 'trash', text: 'trash', run: go('/trash/') },
       { key: 'settings', label: 'settings', text: 'settings', run: go('/settings/') },
       ...(bookId ? [{ key: 'slow', label: 'read slowly', text: 'read slowly', run: go(`/slow/?id=${bookId}`) }] : []),

@@ -21,7 +21,7 @@ import { captureStore, guessSection, initialPicks, type CaptureItem, type PageRe
 import { findSimilar } from '@/lib/dup';
 import { blobToBase64 } from '@/lib/image';
 import { pathOf } from '@/lib/outline';
-import { createQuotes, updateBook, type QuoteInput } from '@/lib/repo';
+import { createQuotes, setCurrentPage, updateBook, type QuoteInput } from '@/lib/repo';
 import { addSnap, deleteSnap, listSnaps } from '@/lib/snaps';
 import { tidy } from '@/lib/typo';
 
@@ -137,7 +137,7 @@ function CaptureCard({ uid, item }: { uid: string; item: CaptureItem }) {
       }
     }
     if (inputs.length) createQuotes(uid, inputs);
-    if (book && maxPage && (!book.currentPage || maxPage > book.currentPage)) updateBook(uid, book.id, { currentPage: maxPage });
+    if (book && maxPage && (!book.currentPage || maxPage > book.currentPage)) setCurrentPage(uid, book, maxPage);
     remove(item);
     if (captureStore.get().length === 0) router.replace(item.bookId ? `/book/?id=${item.bookId}` : '/inbox/');
   };

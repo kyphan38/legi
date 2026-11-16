@@ -32,6 +32,8 @@ export type Book = {
   takeaway: string | null;
   /** false keeps the book's quotes out of Daily. Missing on old data = in Daily. */
   daily?: boolean;
+  /** The page reached each day, newest last (lib/pace). Missing on old data. */
+  pageLog?: { d: string; p: number }[];
   /** Kept inside the book doc, so a reorder or indent is one write. */
   sections: Section[];
   startedAt: number;

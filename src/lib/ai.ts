@@ -41,3 +41,11 @@ export async function extractPage(images: string[], mode: 'marked' | 'all'): Pro
   const res = await callable<{ images: string[]; mode: 'marked' | 'all' }, { pages: PageResult[] }>('extractPage')({ images, mode });
   return res.data.pages;
 }
+
+export type MeaningHit = { id: string; score: number };
+
+/** Quotes close in meaning to the query, best first. `partial`: the index is still being built. */
+export async function searchMeaning(query: string): Promise<{ hits: MeaningHit[]; partial: boolean }> {
+  const res = await callable<{ query: string }, { hits: MeaningHit[]; partial: boolean }>('searchMeaning')({ query });
+  return { hits: res.data.hits ?? [], partial: !!res.data.partial };
+}

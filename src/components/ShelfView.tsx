@@ -9,7 +9,9 @@ import StatusDot from '@/components/StatusDot';
 import TopBar from '@/components/TopBar';
 import { useSnapCount } from '@/hooks/useSnapCount';
 import { useLibrary } from '@/contexts/LibraryContext';
+import { dayOf } from '@/lib/day';
 import { shelfViewStore } from '@/lib/prefs';
+import { readAgain } from '@/lib/revisit';
 import { createBook } from '@/lib/repo';
 import { isSource, SOURCE_FORMATS } from '@/lib/source';
 import { readPercent, spineShade, stackSize } from '@/lib/spine';
@@ -33,6 +35,8 @@ export default function ShelfView() {
   const snaps = useSnapCount(uid);
   const questions = liveQuotes.filter((q) => q.kind === 'question' && q.answeredBy === null).length;
   const count = (b: BookRow) => byBook.get(b.id)?.length ?? 0;
+  const [today] = useState(() => dayOf(Date.now()));
+  const again = loaded ? readAgain(liveBooks, (id) => byBook.get(id)?.length ?? 0, today) : null;
 
   const add = () => {
     const t = title.trim();
@@ -92,6 +96,9 @@ export default function ShelfView() {
           ))}
         </div>
         <div className="ml-auto flex gap-4">
+          <Link href="/year/" className="hover:text-ink">
+            {today.slice(0, 4)}
+          </Link>
           {snaps > 0 && (
             <Link href="/capture/?snaps=1" className="hover:text-ink">
               Snaps {snaps}
@@ -109,6 +116,12 @@ export default function ShelfView() {
           )}
         </div>
       </div>
+
+      {again && (
+        <Link href={`/book/?id=${again.book.id}`} className="mt-4 block text-[13px] text-faint hover:text-ink">
+          Read again: {again.book.title} · {again.count} quotes
+        </Link>
+      )}
 
       {loaded && shelfBooks.length === 0 && <div className="mt-10">{addForm}</div>}
 

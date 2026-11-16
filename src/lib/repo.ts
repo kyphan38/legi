@@ -10,7 +10,9 @@
 
 import { collection, deleteDoc, doc, onSnapshot, setDoc, updateDoc, writeBatch, type WriteBatch } from 'firebase/firestore';
 
+import { dayOf } from '@/lib/day';
 import { getDb } from '@/lib/firebase-client';
+import { logPage } from '@/lib/pace';
 import { mergeFields, splitText } from '@/lib/quote-ops';
 import { purgeable, trashedWith } from '@/lib/trash';
 import { pushUndo } from '@/lib/undo';
@@ -69,6 +71,15 @@ export function createBook(uid: string, title: string, now = Date.now(), format:
 
 export function updateBook(uid: string, id: string, patch: Partial<Book>, now = Date.now()): void {
   updateDoc(bookRef(uid, id), { ...patch, updatedAt: now }).catch(warn('updateBook'));
+}
+
+/** Sets the page reached and logs it for today, so the finish date can be told (lib/pace). */
+export function setCurrentPage(uid: string, book: BookRow, page: number | null, now = Date.now()): void {
+  if (page === null) {
+    updateBook(uid, book.id, { currentPage: null }, now);
+    return;
+  }
+  updateBook(uid, book.id, { currentPage: page, pageLog: logPage(book.pageLog, dayOf(now), page) }, now);
 }
 
 /** Book and all its quotes go to Trash with one timestamp, so restore brings back exactly those. */

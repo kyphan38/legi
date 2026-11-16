@@ -5,7 +5,9 @@ import { useState, type ReactNode } from 'react';
 import GrowText, { isComposing } from '@/components/GrowText';
 import { useLibrary } from '@/contexts/LibraryContext';
 import { bookToMarkdown } from '@/lib/export';
-import { trashBook, updateBook } from '@/lib/repo';
+import { dayOf } from '@/lib/day';
+import { finishDay } from '@/lib/pace';
+import { setCurrentPage, trashBook, updateBook } from '@/lib/repo';
 import { copyText } from '@/lib/share-file';
 import { BOOK_FORMATS, isSource, SOURCE_FORMATS } from '@/lib/source';
 import { readJson, writeJson } from '@/lib/store';
@@ -13,6 +15,11 @@ import { tidy } from '@/lib/typo';
 import type { BookRow, BookStatus } from '@/types/legi';
 
 const STATUSES: BookStatus[] = ['reading', 'finished', 'later'];
+
+/** '2026-12-12' -> '12 Dec'. */
+function shortDay(day: string): string {
+  return new Date(`${day}T12:00:00`).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
+}
 
 function toPages(v: string): number | null {
   const n = Math.floor(Number(v.replace(/\D/g, '')));
@@ -34,6 +41,8 @@ export default function BookHeader({ uid, book, onDeleted }: { uid: string; book
   };
 
   const progress = book.currentPage && book.totalPages ? Math.min(1, book.currentPage / book.totalPages) : null;
+  const [today] = useState(() => dayOf(Date.now()));
+  const finish = book.status === 'reading' ? finishDay(book.pageLog, book.currentPage, book.totalPages, today) : null;
 
   return (
     <header className="mt-8">
@@ -57,6 +66,7 @@ export default function BookHeader({ uid, book, onDeleted }: { uid: string; book
               <span>
                 {book.currentPage} / {book.totalPages}
               </span>
+              {finish && <span>done around {shortDay(finish)}</span>}
             </>
           )}
           {book.pdfUrl && (
@@ -187,7 +197,7 @@ function BookForm({ uid, book, onStatus, count }: { uid: string; book: BookRow; 
               value={at}
               inputMode="numeric"
               onChange={(e) => setAt(e.target.value.replace(/\D/g, '').slice(0, 5))}
-              onBlur={() => toPages(at) !== book.currentPage && updateBook(uid, book.id, { currentPage: toPages(at) })}
+              onBlur={() => toPages(at) !== book.currentPage && setCurrentPage(uid, book, toPages(at))}
               className={`${inputClass} tabular-nums`}
             />
             <span className="shrink-0 text-[13px] text-faint">

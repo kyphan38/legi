@@ -30,6 +30,8 @@ const BLOCKS: Block[] = [
       'A thicker spine has more quotes. A longer one has more pages.',
       'elsewhere holds sources that are not books: a video, a web page or a person.',
       'Inbox holds quotes with no book yet. Long press to select, then move them into a book.',
+      'Read again: one book you finished over 6 months ago that left many quotes. It changes each day.',
+      'The year (for example 2026) opens the Year page.',
     ],
   },
   {
@@ -89,13 +91,28 @@ const BLOCKS: Block[] = [
     ],
   },
   {
+    title: 'Pages and finish date',
+    lines: [
+      'Tap the book title and set pages and at page.',
+      'legi keeps the page you reach each day. After a few days it shows "done around 12 Dec", from your pace over the last 2 weeks.',
+    ],
+  },
+  {
+    title: 'Year',
+    lines: [
+      'Books finished, pages read and quotes saved in one year, the most quoted book, and the list of finished books.',
+      'Pick an older year at the top.',
+    ],
+  },
+  {
     title: 'Finishing a book',
     lines: ['When a book is finished, legi asks what stays with you. The answer shows under the header.'],
   },
   {
     title: 'Search',
     lines: [
-      'Search ignores Vietnamese marks: "thoi quen" finds "thói quen".',
+      'words: search ignores Vietnamese marks, so "thoi quen" finds "thói quen".',
+      'meaning: type an idea, like "about patience", then press Enter. It finds quotes about it, even with other words. The first search takes longer.',
       'On Mac, ⌘K or / opens search and commands.',
     ],
   },

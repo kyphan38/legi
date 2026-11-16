@@ -7,7 +7,8 @@
 // ============================================================
 
 import { GoogleGenAI, ThinkingLevel } from '@google/genai';
-import { applicationDefault } from 'firebase-admin/app';
+import { applicationDefault, getApps, initializeApp } from 'firebase-admin/app';
+import { getFirestore } from 'firebase-admin/firestore';
 import { setGlobalOptions } from 'firebase-functions';
 import { HttpsError, onCall } from 'firebase-functions/https';
 import { logger } from 'firebase-functions';
@@ -17,6 +18,8 @@ import { isAllowed } from './access.ts';
 import { buildExtractPrompt, checkInput, EXTRACT_SCHEMA, parseExtract } from './extract.ts';
 import { checkSpeak, splitForSpeech, synthesizeBody } from './speak.ts';
 import { buildTocPrompt, checkTocInput, parseTocItems, TOC_SCHEMA } from './toc.ts';
+import { nearest, embedTexts, syncIndex } from './search.ts';
+import { checkQuery, SEARCH_LIMIT, SEARCH_MIN_SCORE } from './vectors.ts';
 import { checkVoice, parseVoice, VOICE_PROMPT, VOICE_SCHEMA } from './voice.ts';
 
 setGlobalOptions({ region: 'asia-southeast1', maxInstances: 2 });
@@ -175,6 +178,34 @@ export const extractPage = onCall({ secrets: [GEMINI_API_KEY], timeoutSeconds: 1
   } catch (err) {
     // The error only: never page text.
     logger.error('extractPage failed', err instanceof Error ? err.message : String(err));
+    throw modelError(err);
+  }
+});
+
+/**
+ * Search by meaning: indexes changed quotes first, then the nearest ones.
+ * Returns quote ids and scores only; the app has the text in memory.
+ */
+export const searchMeaning = onCall({ secrets: [GEMINI_API_KEY], timeoutSeconds: 120, memory: '512MiB' }, async (req) => {
+  guard(req.auth);
+  let query: string;
+  try {
+    query = checkQuery(req.data);
+  } catch (err) {
+    throw new HttpsError('invalid-argument', err instanceof Error ? err.message : 'Bad input');
+  }
+  if (getApps().length === 0) initializeApp();
+  const user = getFirestore().collection('users').doc(req.auth!.uid);
+  try {
+    // The first search builds the index; later ones only catch up. The budget
+    // stays under the client's wait; `partial` asks the user to try again.
+    const complete = await syncIndex(user, gemini(), 60_000);
+    const [vector] = await embedTexts(gemini(), [query]);
+    const hits = await nearest(user, vector, SEARCH_LIMIT);
+    return { hits: hits.filter((h) => h.score >= SEARCH_MIN_SCORE), partial: !complete };
+  } catch (err) {
+    // The error only: never the query or quote text.
+    logger.error('searchMeaning failed', err instanceof Error ? err.message : String(err));
     throw modelError(err);
   }
 });
