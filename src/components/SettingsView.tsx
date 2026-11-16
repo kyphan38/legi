@@ -59,6 +59,14 @@ export default function SettingsView() {
       <TopBar current="settings" />
 
       <section className="mt-10 text-[15px]">
+        <Row label="Guide">
+          <Link href="/guide/" className="text-faint hover:text-ink">
+            read
+          </Link>
+        </Row>
+      </section>
+
+      <section className="mt-10 text-[15px]">
         <Choice
           label="Theme"
           value={theme}
