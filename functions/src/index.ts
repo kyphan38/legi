@@ -15,6 +15,7 @@ import { logger } from 'firebase-functions';
 import { defineSecret, defineString } from 'firebase-functions/params';
 
 import { isAllowed } from './access.ts';
+import { logAiCost } from './aiCostLog.ts';
 import { buildExtractPrompt, checkInput, EXTRACT_SCHEMA, parseExtract } from './extract.ts';
 import { checkSpeak, splitForSpeech, synthesizeBody } from './speak.ts';
 import { buildTocPrompt, checkTocInput, parseTocItems, TOC_SCHEMA } from './toc.ts';
@@ -72,6 +73,7 @@ export const transcribe = onCall({ secrets: [GEMINI_API_KEY], timeoutSeconds: 12
       contents: [{ role: 'user', parts: [{ text: VOICE_PROMPT }, { inlineData: { mimeType: input.mimeType, data: input.audio } }] }],
       config: { temperature: 0, responseMimeType: 'application/json', responseJsonSchema: VOICE_SCHEMA, thinkingConfig: THINKING, httpOptions: { timeout: 100_000 } },
     });
+    await logAiCost(GEMINI_MODEL.value(), res.usageMetadata);
     return { text: parseVoice(res.text ?? '') };
   } catch (err) {
     // The error only: never what was said.
@@ -95,6 +97,7 @@ export const tocFromVoice = onCall({ secrets: [GEMINI_API_KEY], timeoutSeconds: 
       contents: [{ role: 'user', parts: [{ text: buildTocPrompt(input.outline) }, { inlineData: { mimeType: input.mimeType, data: input.audio } }] }],
       config: { temperature: 0, responseMimeType: 'application/json', responseJsonSchema: TOC_SCHEMA, thinkingConfig: THINKING, httpOptions: { timeout: 100_000 } },
     });
+    await logAiCost(GEMINI_MODEL.value(), res.usageMetadata);
     return { items: parseTocItems(res.text ?? '', input.outline.map((o) => o.id)) };
   } catch (err) {
     // The error only: never what was said.
@@ -174,6 +177,7 @@ export const extractPage = onCall({ secrets: [GEMINI_API_KEY], timeoutSeconds: 1
         httpOptions: { timeout: 100_000 },
       },
     });
+    await logAiCost(GEMINI_MODEL.value(), res.usageMetadata);
     return { pages: parseExtract(res.text ?? '') };
   } catch (err) {
     // The error only: never page text.

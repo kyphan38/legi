@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { useSyncExternalStore, type ReactNode } from 'react';
 
+import AiCostRow from '@/components/AiCostRow';
 import TopBar from '@/components/TopBar';
 import { useAuth } from '@/contexts/AuthContext';
 import { useLibrary } from '@/contexts/LibraryContext';
@@ -96,6 +97,10 @@ export default function SettingsView() {
             { value: 'off', label: 'off' },
           ]}
         />
+      </section>
+
+      <section className="mt-10 text-[15px]">
+        <AiCostRow />
       </section>
 
       <section className="mt-10 text-[15px]">

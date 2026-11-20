@@ -9,6 +9,7 @@
 import type { GoogleGenAI } from '@google/genai';
 import { FieldValue, type DocumentReference } from 'firebase-admin/firestore';
 
+import { logEmbedCost } from './aiCostLog.ts';
 import { EMBED_DIM, embedText, scoreOf, textHash, type QuoteForIndex } from './vectors.ts';
 
 const EMBED_MODEL = 'gemini-embedding-2';
@@ -29,6 +30,7 @@ export async function embedTexts(ai: GoogleGenAI, texts: string[]): Promise<numb
       contents: part.map((text) => ({ parts: [{ text }] })),
       config: { outputDimensionality: EMBED_DIM, httpOptions: { timeout: 30_000 } },
     });
+    await logEmbedCost(EMBED_MODEL, part);
     const vectors = (res.embeddings ?? []).map((e) => e.values ?? []);
     if (vectors.length !== part.length || vectors.some((v) => v.length !== EMBED_DIM)) throw new Error('Bad embedding answer');
     out.push(...vectors);
